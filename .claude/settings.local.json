@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(curl -s https://eldorado.gg)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(npm install *)",
+      "WebFetch(domain:sassy-moon-840.notion.site)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
