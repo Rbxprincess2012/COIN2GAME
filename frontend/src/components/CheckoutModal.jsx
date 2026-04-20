@@ -100,6 +100,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   const total = items.reduce((sum, item) => sum + item.price, 0)
 
   function getType(item) {
+    if (item.product_type === 'Game') return 'VOUCHER'
     return productTypeMap?.[String(item.id)] || 'VOUCHER'
   }
 

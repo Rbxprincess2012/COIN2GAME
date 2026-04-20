@@ -8,7 +8,9 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': 'http://localhost:4000'
-    }
+    },
+    // serve index.html for all routes (SPA)
+    historyApiFallback: true,
   },
   preview: {
     port: 4173

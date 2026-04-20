@@ -8,31 +8,14 @@ import CheckoutModal from './components/CheckoutModal'
 import Footer from './components/Footer'
 import PlatformGrid from './components/PlatformGrid'
 import PlatformPage from './components/PlatformPage'
-import products from './data/products'
-import { SERVICE_ORDER } from './config/services'
+import GamesSection from './components/GamesSection'
+import GameDetails from './components/GameDetails'
 import { api } from './api'
 
-// Pick one featured product per service: prefer Russia, then cheapest ≥ 500
-function pickFeatured() {
-  const byService = {}
-  for (const p of products) {
-    if (!byService[p.service]) byService[p.service] = []
-    byService[p.service].push(p)
-  }
-  return SERVICE_ORDER.map((svc) => {
-    const list = byService[svc] || []
-    const ru = list.filter((p) => p.region === 'Россия' && p.price >= 500)
-    const pool = ru.length ? ru : list.filter((p) => p.price >= 500)
-    if (!pool.length) return null
-    return pool.reduce((a, b) => (a.price <= b.price ? a : b))
-  }).filter(Boolean)
-}
-
-const FEATURED = pickFeatured()
-
 function App() {
-  // view: 'home' | 'platform' | 'product'
+  // view: 'home' | 'platform' | 'product' | 'game'
   const [view, setView] = useState('home')
+  const [selectedGame, setSelectedGame] = useState(null)
   const [activePlatform, setActivePlatform] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
 
@@ -45,8 +28,11 @@ function App() {
   const [showCheckout, setShowCheckout] = useState(false)
   const [checkoutItems, setCheckoutItems] = useState([])
   const [homeSearch, setHomeSearch] = useState('')
-  // productTypeMap: { [product_id: string]: 'TOPUP' | 'VOUCHER' }
   const [productTypeMap, setProductTypeMap] = useState({})
+  const [groups, setGroups] = useState([])
+  const [featured, setFeatured] = useState([])
+  const [platformProducts, setPlatformProducts] = useState([])
+  const [platformLoading, setPlatformLoading] = useState(false)
 
   useEffect(() => {
     const storedCart = localStorage.getItem('topup_cart')
@@ -56,14 +42,36 @@ function App() {
     if (storedEmail) setUserEmail(storedEmail)
     if (storedLoggedIn === 'true') setIsLoggedIn(true)
 
-    // Load product types from API (TOPUP / VOUCHER)
+    // Load product types (TOPUP / VOUCHER)
     api.fpProducts().then(data => {
       if (Array.isArray(data)) {
         const map = {}
         for (const p of data) map[String(p.product_id)] = p.type
         setProductTypeMap(map)
       }
-    }).catch(() => {}) // silent — falls back to 'VOUCHER' default
+    }).catch(() => {})
+
+    // Load groups
+    fetch('/api/groups').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setGroups(data)
+    }).catch(() => {})
+
+    // Load featured (cheapest in-stock per group, prefer Russia)
+    fetch('/api/products?in_stock=true').then(r => r.json()).then(({ products }) => {
+      if (!Array.isArray(products)) return
+      const byGroup = {}
+      for (const p of products) {
+        if (!byGroup[p.service]) byGroup[p.service] = []
+        byGroup[p.service].push(p)
+      }
+      const picks = Object.values(byGroup).map(list => {
+        const ru = list.filter(p => p.region === 'Россия' && p.price >= 500)
+        const pool = ru.length ? ru : list.filter(p => p.price >= 500)
+        if (!pool.length) return null
+        return pool.reduce((a, b) => a.price <= b.price ? a : b)
+      }).filter(Boolean).slice(0, 9)
+      setFeatured(picks)
+    }).catch(() => {})
   }, [])
 
   useEffect(() => { localStorage.setItem('topup_cart', JSON.stringify(cart)) }, [cart])
@@ -116,16 +124,34 @@ function App() {
     setCart([])
     setCheckoutItems([])
     setSelectedProduct(null)
-    setView(activePlatform ? 'platform' : 'home')
+    setView(activePlatform ? 'platform' : selectedGame ? 'game' : 'home')
   }
 
-  const goHome = () => { setView('home'); setActivePlatform(null); setSelectedProduct(null) }
+  const goHome = () => { setView('home'); setActivePlatform(null); setSelectedProduct(null); setSelectedGame(null) }
 
-  const goToPlatform = (service) => {
+  const goToGame = (game) => {
+    setSelectedGame(game)
+    setView('game')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goBackFromGame = () => {
+    setSelectedGame(null)
+    setView('home')
+  }
+
+  const goToPlatform = async (service) => {
     setActivePlatform(service)
     setSelectedProduct(null)
     setView('platform')
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    setPlatformLoading(true)
+    try {
+      const res = await fetch(`/api/products?group=${encodeURIComponent(service)}&in_stock=true`)
+      const { products } = await res.json()
+      setPlatformProducts(products || [])
+    } catch { setPlatformProducts([]) }
+    setPlatformLoading(false)
   }
 
   const goToProduct = (product) => {
@@ -171,36 +197,52 @@ function App() {
             </div>
 
             <div id="platforms">
-              <PlatformGrid onSelectService={goToPlatform} searchQuery={homeSearch} />
+              <PlatformGrid onSelectService={goToPlatform} searchQuery={homeSearch} groups={groups} />
             </div>
 
-            {/* Featured products */}
-            <section className="featured-section">
-              <div className="section-header">
-                <div>
-                  <p className="eyebrow">Хиты продаж</p>
-                  <h2>Самые популярные</h2>
+            {featured.length > 0 && (
+              <section className="featured-section">
+                <div className="section-header">
+                  <div>
+                    <p className="eyebrow">Хиты продаж</p>
+                    <h2>Самые популярные</h2>
+                  </div>
                 </div>
-              </div>
-              <div className="products-grid">
-                {FEATURED.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onSelect={() => goToProduct(product)}
-                    onAdd={() => handleAddToCart(product)}
-                    showBadge
-                  />
-                ))}
-              </div>
-            </section>
+                <div className="products-grid">
+                  {featured.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onSelect={() => goToProduct(product)}
+                      onAdd={() => handleAddToCart(product)}
+                      showBadge
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <GamesSection onSelectGame={goToGame} />
           </>
+        )}
+
+        {/* ── Game detail ──────────────────────────────────────────── */}
+        {view === 'game' && selectedGame && (
+          <GameDetails
+            game={selectedGame}
+            onBack={goBackFromGame}
+            onAddToCart={handleAddToCart}
+            onCheckout={(game) => openCheckout([game])}
+          />
         )}
 
         {/* ── Platform page ────────────────────────────────────────── */}
         {view === 'platform' && activePlatform && (
           <PlatformPage
             service={activePlatform}
+            groupMeta={groups.find(g => g.group === activePlatform)}
+            products={platformProducts}
+            loading={platformLoading}
             onBack={goHome}
             onSelect={goToProduct}
             onAdd={handleAddToCart}

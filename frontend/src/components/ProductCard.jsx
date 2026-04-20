@@ -1,3 +1,8 @@
+function stripHtml(str) {
+  if (!str) return ''
+  return str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
+}
+
 function ProductCard({ product, onSelect, onAdd, showBadge = false }) {
   return (
     <article className="card product-card">
@@ -8,7 +13,6 @@ function ProductCard({ product, onSelect, onAdd, showBadge = false }) {
           <span className="card-price">₽{product.price.toLocaleString('ru-RU')}</span>
         </div>
         <p className="card-meta">{product.category} · {product.platform}</p>
-        <p className="card-description">{product.description}</p>
         <div className="card-footer">
           <span className="card-region">Регион: {product.region}</span>
           <div className="card-actions">

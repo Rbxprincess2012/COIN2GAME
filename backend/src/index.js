@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { pool } from './db.js'
+import adminRoutes from './admin-routes.js'
 
 dotenv.config()
 
@@ -9,15 +10,103 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+app.use('/api/admin', adminRoutes)
+
 // ── Local DB routes ──────────────────────────────────────────────────────────
 
+// Helper: get effective markup for a product (product → group → global)
+async function getMarkupMap() {
+  const result = await pool.query('SELECT key, value FROM settings')
+  const map = {}
+  for (const row of result.rows) {
+    map[row.key] = typeof row.value === 'number' ? row.value : parseFloat(row.value)
+  }
+  return map
+}
+
+function applyMarkup(price, groupName, productMarkup, markupMap) {
+  let pct = productMarkup != null
+    ? parseFloat(productMarkup)
+    : (markupMap[`markup_${(groupName || '').toLowerCase().replace(/\s+/g, '_')}`] ?? markupMap['markup_global'] ?? 0)
+  if (isNaN(pct)) pct = 0
+  return Math.round(parseFloat(price) * (1 + pct / 100))
+}
+
+// GET /api/products?group=Steam&in_stock=true&search=pubg
 app.get('/api/products', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM products ORDER BY id')
-    res.json({ products: result.rows })
+    const { group, in_stock, search } = req.query
+    const params = []
+    const where = ['price IS NOT NULL']
+
+    if (group) {
+      params.push(group)
+      where.push(`group_name = $${params.length}`)
+    }
+    if (in_stock === 'true') {
+      where.push(`in_stock = true`)
+    }
+    if (search) {
+      params.push(`%${search}%`)
+      where.push(`name ILIKE $${params.length}`)
+    }
+
+    const clause = `WHERE ${where.join(' AND ')}`
+    const result = await pool.query(
+      `SELECT product_id, name, group_name, region, price, markup, in_stock, product_type, description, image
+       FROM products ${clause}
+       ORDER BY group_name, price`,
+      params
+    )
+
+    const markupMap = await getMarkupMap()
+    const products = result.rows.map(p => ({
+      id: p.product_id,
+      title: p.name,
+      service: p.group_name,
+      platform: p.group_name,
+      category: 'Цифровые товары',
+      price: applyMarkup(p.price, p.group_name, p.markup, markupMap),
+      base_price: parseFloat(p.price),
+      region: p.region || 'Любой',
+      description: p.description || '',
+      image: p.image || null,
+      in_stock: p.in_stock,
+      product_type: p.product_type,
+      badge: null,
+    }))
+
+    res.json({ products })
   } catch (error) {
     console.error(error)
     res.status(500).json({ error: 'Failed to load products' })
+  }
+})
+
+// GET /api/groups — группы из БД (только те, у которых есть товары в наличии)
+app.get('/api/groups', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT group_name,
+             COUNT(*) as total,
+             COUNT(*) FILTER (WHERE in_stock = true) as available
+      FROM products
+      WHERE price IS NOT NULL
+      GROUP BY group_name
+      HAVING COUNT(*) FILTER (WHERE in_stock = true) > 0
+      ORDER BY available DESC
+    `)
+
+    const groups = result.rows.map(row => ({
+      group: row.group_name,
+      icon: null,
+      available: parseInt(row.available),
+      total: parseInt(row.total),
+    }))
+
+    res.json(groups)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
   }
 })
 
@@ -159,6 +248,84 @@ app.post('/api/fp/product/info', async (req, res) => {
     const data = await fpPost(FP_INFO, { transaction_id: req.body.sbp_uuid })
     res.json(data)
   } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// 6. Список игр из FP API
+app.get('/api/fp/games', async (req, res) => {
+  try {
+    const data = await fpGet(`${FP_BASE}/get-games`)
+    res.json(data)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// GET /api/games/meta — доступные лаунчеры
+app.get('/api/games/meta', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT launcher FROM games WHERE launcher IS NOT NULL ORDER BY launcher`
+    )
+    res.json({ launchers: result.rows.map(r => r.launcher) })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// GET /api/games?launcher=STEAM&search=...&limit=24&offset=0
+app.get('/api/games', async (req, res) => {
+  try {
+    const { launcher, search, limit = 24, offset = 0 } = req.query
+    const params = []
+    const where = ['price IS NOT NULL']
+
+    if (launcher) {
+      params.push(launcher)
+      where.push(`launcher = $${params.length}`)
+    }
+    if (search) {
+      params.push(`%${search}%`)
+      where.push(`name ILIKE $${params.length}`)
+    }
+
+    const clause = `WHERE ${where.join(' AND ')}`
+    const countRes = await pool.query(`SELECT COUNT(*) FROM games ${clause}`, params)
+
+    const markupMap = await getMarkupMap()
+    params.push(Number(limit), Number(offset))
+    const result = await pool.query(
+      `SELECT game_id, name, price, markup, launcher, supported_platforms, region,
+              genres, developer, image, age_rating, release_date, languages, description
+       FROM games ${clause}
+       ORDER BY name
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    )
+
+    const games = result.rows.map(g => ({
+      id: g.game_id,
+      title: g.name,
+      price: applyMarkup(g.price, 'games', g.markup, markupMap),
+      base_price: parseFloat(g.price),
+      launcher: g.launcher,
+      supported_platforms: g.supported_platforms,
+      region: g.region || 'Любой',
+      genres: g.genres,
+      developer: g.developer,
+      image: g.image,
+      age_rating: g.age_rating,
+      release_date: g.release_date,
+      languages: g.languages,
+      description: g.description,
+      product_type: 'Game',
+      category: 'Игры',
+    }))
+
+    res.json({ games, total: parseInt(countRes.rows[0].count) })
+  } catch (e) {
+    console.error(e)
     res.status(500).json({ error: e.message })
   }
 })

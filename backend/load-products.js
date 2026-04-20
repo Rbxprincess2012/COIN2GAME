@@ -37,7 +37,7 @@ function mapRow(row) {
     platform: row[lowerKeys['platform']] || row[lowerKeys['group']] || row[lowerKeys['group_name']] || null,
     service: row[lowerKeys['service']] || row[lowerKeys['description']] || null,
     price: row[lowerKeys['price']] || null,
-    in_stock: row[lowerKeys['in_stock']] || row[lowerKeys['stock']] || null,
+    in_stock: (() => { const v = row[lowerKeys['in_stock']] ?? row[lowerKeys['stock']]; if (v === null || v === undefined) return null; if (typeof v === 'boolean') return v; return String(v).toLowerCase() === 'true' })(),
     group_name: row[lowerKeys['group']] || row[lowerKeys['group_name']] || null,
     region: row[lowerKeys['region']] || null,
     description: row[lowerKeys['description']] || null,

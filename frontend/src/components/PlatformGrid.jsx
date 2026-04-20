@@ -1,18 +1,39 @@
-import { SERVICE_CONFIG, SERVICE_ORDER } from '../config/services'
-import products from '../data/products'
+import { SERVICE_CONFIG } from '../config/services'
 
-function PlatformGrid({ onSelectService, searchQuery = '' }) {
-  const countByService = {}
-  for (const p of products) {
-    countByService[p.service] = (countByService[p.service] || 0) + 1
+// Fallback colors for groups not in SERVICE_CONFIG
+const FALLBACK_ACCENTS = ['#66c0f4','#ff4655','#52b043','#f2a900','#44d62c','#a2aaad','#c8a95a','#0070d1','#ff4444']
+
+function getGroupCfg(groupName, idx) {
+  const cfg = SERVICE_CONFIG[groupName]
+  if (cfg) return cfg
+  return {
+    accent: FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length],
+    bg: 'linear-gradient(135deg, #0d1824 0%, #1b2838 100%)',
+    image: null,
+    label: groupName,
   }
+}
 
+function PlatformGrid({ onSelectService, searchQuery = '', groups = [] }) {
   const q = searchQuery.trim().toLowerCase()
-  const visible = SERVICE_ORDER.filter((key) => {
-    if (!q) return true
-    const cfg = SERVICE_CONFIG[key]
-    return cfg?.label.toLowerCase().includes(q) || key.toLowerCase().includes(q)
-  })
+  const visible = groups.filter(g =>
+    !q || g.group.toLowerCase().includes(q)
+  )
+
+  if (groups.length === 0) {
+    return (
+      <section className="platform-grid-section">
+        <div className="section-header">
+          <div><p className="eyebrow">Платформы</p><h2>Выберите сервис</h2></div>
+        </div>
+        <div className="platform-grid">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="platform-tile platform-tile--skeleton" />
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="platform-grid-section">
@@ -23,28 +44,31 @@ function PlatformGrid({ onSelectService, searchQuery = '' }) {
         </div>
       </div>
       <div className="platform-grid">
-        {visible.map((key) => {
-          const cfg = SERVICE_CONFIG[key]
-          if (!cfg) return null
-          const count = countByService[key] || 0
+        {visible.map((g, idx) => {
+          const cfg = getGroupCfg(g.group, idx)
+          const imgSrc = cfg.image || g.icon || null
           return (
             <button
-              key={key}
+              key={g.group}
               className="platform-tile"
               style={{ background: cfg.bg }}
-              onClick={() => onSelectService(key)}
+              onClick={() => onSelectService(g.group)}
             >
               <div className="platform-tile-img-wrap">
-                <img
-                  src={cfg.image}
-                  alt={cfg.label}
-                  className="platform-tile-img"
-                  onError={(e) => { e.target.style.display = 'none' }}
-                />
+                {imgSrc && (
+                  <img
+                    src={imgSrc}
+                    alt={g.group}
+                    className="platform-tile-img"
+                    onError={e => { e.target.style.display = 'none' }}
+                  />
+                )}
               </div>
               <div className="platform-tile-info">
-                <span className="platform-tile-name" style={{ color: cfg.accent }}>{cfg.label}</span>
-                <span className="platform-tile-count">{count} товаров</span>
+                <span className="platform-tile-name" style={{ color: cfg.accent }}>
+                  {cfg.label || g.group}
+                </span>
+                <span className="platform-tile-count">{g.available} товаров</span>
               </div>
               <div className="platform-tile-arrow">→</div>
             </button>
