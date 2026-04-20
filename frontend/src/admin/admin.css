@@ -92,7 +92,6 @@
 
 .a-page {
   padding: 32px;
-  max-width: 1400px;
 }
 
 .a-page-header {
@@ -252,6 +251,15 @@
   font-size: 0.875rem;
 }
 
+.a-table td,
+.a-table th {
+  white-space: nowrap;
+}
+
+.a-table .a-col-name {
+  min-width: 200px;
+}
+
 .a-table th {
   text-align: left;
   padding: 12px 16px;
@@ -279,6 +287,7 @@
 .a-details { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .a-actions { display: flex; gap: 6px; }
+
 
 /* ── Badges ───────────────────────────────────────────────────────────────── */
 .a-badge {
@@ -500,6 +509,25 @@
 
 .a-col-filter:focus { border-color: rgba(134,95,255,0.5); }
 .a-col-filter option { background: #07192e; }
+
+/* ── Bulk action bar ─────────────────────────────────────────────────────── */
+.a-bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(134,95,255,0.1);
+  border: 1px solid rgba(134,95,255,0.25);
+  margin-bottom: 16px;
+}
+
+/* ── Paused row ───────────────────────────────────────────────────────────── */
+.a-row--paused td {
+  opacity: 0.5;
+}
 
 /* ── Tokens page ──────────────────────────────────────────────────────────── */
 .a-tokens-grid {

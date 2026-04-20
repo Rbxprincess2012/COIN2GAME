@@ -35,6 +35,7 @@ export const adminApi = {
   updateProduct: (id, data) => req('PUT', `/products/${id}`, data),
   deleteProduct: (id) => req('DELETE', `/products/${id}`),
   syncProducts: () => req('POST', '/products/sync'),
+  pauseProducts: (ids, paused) => req('POST', '/products/pause', { ids, paused }),
 
   // Settings
   getSettings: () => req('GET', '/settings'),

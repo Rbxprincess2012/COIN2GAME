@@ -53,9 +53,14 @@ function Header({ onLogin, onCartOpen, cartCount, isLoggedIn, userEmail, onLogoC
             </svg>
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
           </button>
-          <button className="btn-primary btn-sm" onClick={onLogin}>
-            {isLoggedIn ? userEmail.split('@')[0] : 'Войти'}
-          </button>
+          {isLoggedIn ? (
+            <button className="btn-user-logged" onClick={onLogin}>
+              <span className="btn-user-dot" />
+              {userEmail.split('@')[0]}
+            </button>
+          ) : (
+            <button className="btn-primary btn-sm" onClick={onLogin}>Войти</button>
+          )}
         </div>
       </div>
     </header>

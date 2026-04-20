@@ -29,6 +29,8 @@ function App() {
   const [showCheckout, setShowCheckout] = useState(false)
   const [checkoutItems, setCheckoutItems] = useState([])
   const [homeSearch, setHomeSearch] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searchLoading, setSearchLoading] = useState(false)
   const [productTypeMap, setProductTypeMap] = useState({})
   const [groups, setGroups] = useState([])
   const [featured, setFeatured] = useState([])
@@ -75,6 +77,20 @@ function App() {
       setFeatured(picks.map((p, i) => ({ ...p, badge: BADGES[i] || 'Популярный' })))
     }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const q = homeSearch.trim()
+    if (!q) { setSearchResults([]); return }
+    setSearchLoading(true)
+    const timer = setTimeout(() => {
+      fetch(`/api/products?search=${encodeURIComponent(q)}&in_stock=true`)
+        .then(r => r.json())
+        .then(({ products }) => setSearchResults(products || []))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearchLoading(false))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [homeSearch])
 
   useEffect(() => { localStorage.setItem('topup_cart', JSON.stringify(cart)) }, [cart])
   useEffect(() => {
@@ -184,42 +200,75 @@ function App() {
         {view === 'home' && (
           <>
             <div className="home-search-bar">
-              <input
-                type="text"
-                className="search-input search-input--home"
-                placeholder="Найти игру, сервис или платформу..."
-                value={homeSearch}
-                onChange={(e) => setHomeSearch(e.target.value)}
-              />
+              <div className="search-wrap">
+                <input
+                  type="text"
+                  className="search-input search-input--home"
+                  placeholder="Найти игру, сервис или платформу..."
+                  value={homeSearch}
+                  onChange={(e) => setHomeSearch(e.target.value)}
+                />
+                {homeSearch && (
+                  <button className="search-clear" onClick={() => setHomeSearch('')}>×</button>
+                )}
+              </div>
             </div>
 
-            <div id="platforms">
-              <PlatformGrid onSelectService={goToPlatform} searchQuery={homeSearch} groups={groups} />
-            </div>
-
-            {featured.length > 0 && (
+            {homeSearch.trim() ? (
               <section className="featured-section">
                 <div className="section-header">
                   <div>
-                    <p className="eyebrow">Хиты продаж</p>
-                    <h2>Самые популярные</h2>
+                    <p className="eyebrow">Результаты поиска</p>
+                    <h2>
+                      {searchLoading ? 'Поиск...' : `Найдено: ${searchResults.length}`}
+                    </h2>
                   </div>
                 </div>
+                {!searchLoading && searchResults.length === 0 && (
+                  <p style={{ color: '#92a2d4' }}>Ничего не найдено</p>
+                )}
                 <div className="products-grid">
-                  {featured.map((product) => (
+                  {searchResults.map((product) => (
                     <ProductCard
                       key={product.id}
                       product={product}
                       onSelect={() => goToProduct(product)}
                       onAdd={() => handleAddToCart(product)}
-                      showBadge
                     />
                   ))}
                 </div>
               </section>
-            )}
+            ) : (
+              <>
+                <div id="platforms">
+                  <PlatformGrid onSelectService={goToPlatform} searchQuery={homeSearch} groups={groups} />
+                </div>
 
-            <GamesSection onSelectGame={goToGame} />
+                {featured.length > 0 && (
+                  <section className="featured-section">
+                    <div className="section-header">
+                      <div>
+                        <p className="eyebrow">Хиты продаж</p>
+                        <h2>Самые популярные</h2>
+                      </div>
+                    </div>
+                    <div className="products-grid">
+                      {featured.map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          onSelect={() => goToProduct(product)}
+                          onAdd={() => handleAddToCart(product)}
+                          showBadge
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <GamesSection onSelectGame={goToGame} />
+              </>
+            )}
           </>
         )}
 

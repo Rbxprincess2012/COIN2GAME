@@ -26,14 +26,18 @@ async function log(type, product_id = null, product_name = null, details = {}) {
 
 router.get('/products', async (req, res) => {
   try {
-    const { search, group, region, product_type, in_stock, page = 1, limit = 50 } = req.query
+    const { id, search, group, region, product_type, in_stock, paused, page = 1, limit = 50 } = req.query
     const offset = (Number(page) - 1) * Number(limit)
     const params = []
     const where = []
 
+    if (id) {
+      params.push(`%${id}%`)
+      where.push(`product_id ILIKE $${params.length}`)
+    }
     if (search) {
       params.push(`%${search}%`)
-      where.push(`(name ILIKE $${params.length} OR product_id ILIKE $${params.length})`)
+      where.push(`name ILIKE $${params.length}`)
     }
     if (group) {
       params.push(group)
@@ -49,13 +53,15 @@ router.get('/products', async (req, res) => {
     }
     if (in_stock === 'true') where.push(`in_stock = true`)
     if (in_stock === 'false') where.push(`in_stock = false`)
+    if (paused === 'true') where.push(`paused = true`)
+    if (paused === 'false') where.push(`(paused IS NULL OR paused = false)`)
 
     const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const countRes = await pool.query(`SELECT COUNT(*) FROM products ${clause}`, params)
 
     params.push(Number(limit), offset)
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, in_stock, product_type, currency, description, updated_at
+      `SELECT product_id, name, group_name, region, price, markup, in_stock, paused, product_type, currency, description, updated_at
        FROM products ${clause}
        ORDER BY group_name, name
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -74,6 +80,21 @@ router.get('/products/groups', async (req, res) => {
       `SELECT group_name, COUNT(*) as count FROM products GROUP BY group_name ORDER BY group_name`
     )
     res.json(result.rows)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+router.post('/products/pause', async (req, res) => {
+  try {
+    const { ids, paused } = req.body
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' })
+    await pool.query(
+      `UPDATE products SET paused=$1, updated_at=NOW() WHERE product_id = ANY($2)`,
+      [paused, ids]
+    )
+    await log(paused ? 'PRODUCTS_PAUSED' : 'PRODUCTS_RESUMED', null, null, { ids, count: ids.length })
+    res.json({ ok: true, count: ids.length })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
@@ -108,6 +129,14 @@ router.delete('/products/:id', async (req, res) => {
   }
 })
 
+// Detect products that explicitly exclude Russia/CIS
+// Checks both region field and product name
+const RU_BLOCKED_RE = /without\s+[^)]*\bru\b/i
+
+function isBlockedInRussia(name = '', region = '') {
+  return RU_BLOCKED_RE.test(region) || RU_BLOCKED_RE.test(name)
+}
+
 // Sync prices/stock from ForeignPay API
 router.post('/products/sync', async (req, res) => {
   try {
@@ -120,24 +149,28 @@ router.post('/products/sync', async (req, res) => {
 
     let updated = 0
     let inserted = 0
+    let autoPaused = 0
     for (const p of data) {
+      const blocked = isBlockedInRussia(p.name, p.region)
       const r = await pool.query(
-        `INSERT INTO products (product_id, name, price, in_stock, group_name, product_type, region, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        `INSERT INTO products (product_id, name, price, in_stock, group_name, product_type, region, paused, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
          ON CONFLICT (product_id) DO UPDATE SET
            price = EXCLUDED.price,
            in_stock = EXCLUDED.in_stock,
            product_type = EXCLUDED.product_type,
+           paused = CASE WHEN products.paused = true THEN true ELSE EXCLUDED.paused END,
            updated_at = NOW()
          RETURNING (xmax = 0) AS inserted`,
-        [String(p.product_id), p.name, p.price, p.in_stock, p.group, p.type, p.region]
+        [String(p.product_id), p.name, p.price, p.in_stock, p.group, p.type, p.region, blocked]
       )
       if (r.rows[0]?.inserted) inserted++
       else updated++
+      if (blocked) autoPaused++
     }
 
-    await log('SYNC', null, null, { total_from_api: data.length, updated, inserted })
-    res.json({ ok: true, updated, inserted, total: data.length })
+    await log('SYNC', null, null, { total_from_api: data.length, updated, inserted, auto_paused: autoPaused })
+    res.json({ ok: true, updated, inserted, total: data.length, autoPaused })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
@@ -156,29 +189,35 @@ router.post('/games/sync', async (req, res) => {
 
     let updated = 0
     let inserted = 0
+    let autoPaused = 0
     for (const g of data) {
+      const blocked = isBlockedInRussia(g.name, g.activation_region)
       const r = await pool.query(
-        `INSERT INTO products (product_id, name, group_name, price, in_stock, product_type, region, description, image, raw_data, updated_at)
-         VALUES ($1,$2,$3,$4,true,$5,$6,$7,$8,$9,NOW())
+        `INSERT INTO products (product_id, name, group_name, price, in_stock, product_type, region, description, image, raw_data, paused, updated_at)
+         VALUES ($1,$2,$3,$4,true,$5,$6,$7,$8,$9,$10,NOW())
          ON CONFLICT (product_id) DO UPDATE SET
            name=EXCLUDED.name, price=EXCLUDED.price, group_name=EXCLUDED.group_name,
            in_stock=true, product_type=EXCLUDED.product_type, region=EXCLUDED.region,
            description=EXCLUDED.description, image=EXCLUDED.image,
-           raw_data=EXCLUDED.raw_data, updated_at=NOW()
+           raw_data=EXCLUDED.raw_data,
+           paused = CASE WHEN products.paused = true THEN true ELSE EXCLUDED.paused END,
+           updated_at=NOW()
          RETURNING (xmax = 0) AS inserted`,
         [
           String(g.product_id), g.name, g.launcher || 'Игры', g.price,
           g.product_type || 'Game', g.activation_region,
           g.description, g.image,
           JSON.stringify({ genres: g.genres, developer: g.developer, age_rating: g.age_rating, release_date: g.release_date, languages: g.languages, supported_platforms: g.supported_platforms }),
+          blocked,
         ]
       )
       if (r.rows[0]?.inserted) inserted++
       else updated++
+      if (blocked) autoPaused++
     }
 
-    await log('GAMES_SYNC', null, null, { total_from_api: data.length, updated, inserted })
-    res.json({ ok: true, updated, inserted, total: data.length })
+    await log('GAMES_SYNC', null, null, { total_from_api: data.length, updated, inserted, auto_paused: autoPaused })
+    res.json({ ok: true, updated, inserted, total: data.length, autoPaused })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

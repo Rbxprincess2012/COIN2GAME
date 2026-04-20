@@ -37,6 +37,11 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS markup NUMERIC(5,2);
   `)
 
+  // Migration: add paused column if missing
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS paused BOOLEAN DEFAULT false;
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,

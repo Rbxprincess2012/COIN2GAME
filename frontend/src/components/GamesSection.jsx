@@ -77,13 +77,18 @@ function GamesSection({ onSelectGame }) {
             ))}
           </div>
         )}
-        <input
-          type="text"
-          className="search-input games-search"
-          placeholder="Поиск по названию игры..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="search-wrap" style={{ maxWidth: 340 }}>
+          <input
+            type="text"
+            className="search-input games-search"
+            placeholder="Поиск по названию игры..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="search-clear" onClick={() => setSearch('')}>×</button>
+          )}
+        </div>
       </div>
 
       {loading && games.length === 0 ? (

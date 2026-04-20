@@ -13,7 +13,6 @@ function EditModal({ product, onSave, onClose }) {
     markup: product.markup ?? '',
   })
   const [saving, setSaving] = useState(false)
-
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function handleSave() {
@@ -85,7 +84,7 @@ function EditModal({ product, onSave, onClose }) {
   )
 }
 
-const EMPTY_FILTERS = { search: '', group: '', region: '', product_type: '', in_stock: '' }
+const EMPTY_FILTERS = { id: '', search: '', group: '', region: '', product_type: '', in_stock: '', paused: '' }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -97,21 +96,31 @@ export default function ProductsPage() {
   const [syncing, setSyncing] = useState(false)
   const [editing, setEditing] = useState(null)
   const [syncResult, setSyncResult] = useState(null)
+  const [selected, setSelected] = useState(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [globalMarkup, setGlobalMarkup] = useState(0)
   const LIMIT = 50
 
   useEffect(() => {
     adminApi.getGroups().then(rows => setGroups(rows.map(r => r.group_name)))
+    adminApi.getSettings().then(s => {
+      const val = parseFloat(s.markup_global)
+      if (!isNaN(val)) setGlobalMarkup(val)
+    })
   }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
+    setSelected(new Set())
     try {
       const params = { page, limit: LIMIT }
+      if (filters.id)           params.id           = filters.id
       if (filters.search)       params.search       = filters.search
       if (filters.group)        params.group        = filters.group
       if (filters.region)       params.region       = filters.region
       if (filters.product_type) params.product_type = filters.product_type
       if (filters.in_stock)     params.in_stock     = filters.in_stock
+      if (filters.paused)       params.paused       = filters.paused
       const data = await adminApi.getProducts(params)
       setProducts(data.products || [])
       setTotal(data.total || 0)
@@ -133,6 +142,35 @@ export default function ProductsPage() {
 
   const hasFilters = Object.values(filters).some(Boolean)
 
+  // ── Selection ──────────────────────────────────────────────────────────────
+  const allIds = products.map(p => p.product_id)
+  const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id))
+  const someSelected = selected.size > 0
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(allIds))
+    }
+  }
+
+  function toggleOne(id) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function handleBulkPause(paused) {
+    setBulkLoading(true)
+    await adminApi.pauseProducts([...selected], paused)
+    setBulkLoading(false)
+    load()
+  }
+
+  // ── CRUD ───────────────────────────────────────────────────────────────────
   async function handleSave(id, form) {
     await adminApi.updateProduct(id, form)
     setEditing(null)
@@ -156,10 +194,13 @@ export default function ProductsPage() {
 
   const pages = Math.ceil(total / LIMIT)
 
+  function effectiveMarkup(p) {
+    return p.markup != null ? Number(p.markup) : globalMarkup
+  }
+
   function finalPrice(p) {
-    const markup = p.markup != null ? Number(p.markup) : null
-    if (markup === null) return null
-    return Math.round(Number(p.price) * (1 + markup / 100))
+    const pct = effectiveMarkup(p)
+    return Math.round(Number(p.price) * (1 + pct / 100))
   }
 
   return (
@@ -178,7 +219,33 @@ export default function ProductsPage() {
 
       {syncResult && (
         <div className="a-alert a-alert--success">
-          Синхронизировано: обновлено {syncResult.updated}, добавлено {syncResult.inserted ?? 0} новых из {syncResult.total} товаров API
+          Синхронизировано: обновлено {syncResult.updated}, добавлено {syncResult.inserted ?? 0} из {syncResult.total}
+          {syncResult.autoPaused > 0 && ` · авто-пауза: ${syncResult.autoPaused} (недоступны в РФ)`}
+        </div>
+      )}
+
+      {someSelected && (
+        <div className="a-bulk-bar">
+          <span className="a-muted">Выбрано: <b style={{ color: '#e8ecff' }}>{selected.size}</b></span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="a-btn a-btn--sm a-btn--danger"
+              disabled={bulkLoading}
+              onClick={() => handleBulkPause(true)}
+            >
+              ⏸ Поставить на паузу
+            </button>
+            <button
+              className="a-btn a-btn--sm a-btn--ghost"
+              disabled={bulkLoading}
+              onClick={() => handleBulkPause(false)}
+            >
+              ▶ Возобновить продажи
+            </button>
+            <button className="a-btn a-btn--sm a-btn--ghost" onClick={() => setSelected(new Set())}>
+              ✕ Снять выделение
+            </button>
+          </div>
         </div>
       )}
 
@@ -186,31 +253,45 @@ export default function ProductsPage() {
         <table className="a-table">
           <thead>
             <tr>
-              <th>ID / Название</th>
+              <th style={{ width: 36 }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  title="Выбрать всё на странице"
+                />
+              </th>
+              <th style={{ width: 160 }}>ID</th>
+              <th>Название</th>
               <th>Группа</th>
               <th>Регион</th>
               <th>Тип</th>
               <th>Себест.</th>
               <th>Наценка</th>
               <th>Итого</th>
-              <th>Наличие</th>
+              <th>Статус</th>
               <th></th>
             </tr>
             <tr className="a-filter-row">
+              <td />
               <td>
                 <input
                   className="a-col-filter"
-                  placeholder="Поиск..."
+                  placeholder="ID..."
+                  value={filters.id}
+                  onChange={e => setFilter('id', e.target.value)}
+                />
+              </td>
+              <td>
+                <input
+                  className="a-col-filter"
+                  placeholder="Название..."
                   value={filters.search}
                   onChange={e => setFilter('search', e.target.value)}
                 />
               </td>
               <td>
-                <select
-                  className="a-col-filter"
-                  value={filters.group}
-                  onChange={e => setFilter('group', e.target.value)}
-                >
+                <select className="a-col-filter" value={filters.group} onChange={e => setFilter('group', e.target.value)}>
                   <option value="">Все</option>
                   {groups.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
@@ -224,27 +305,19 @@ export default function ProductsPage() {
                 />
               </td>
               <td>
-                <select
-                  className="a-col-filter"
-                  value={filters.product_type}
-                  onChange={e => setFilter('product_type', e.target.value)}
-                >
+                <select className="a-col-filter" value={filters.product_type} onChange={e => setFilter('product_type', e.target.value)}>
                   <option value="">Все</option>
                   <option value="VOUCHER">VOUCHER</option>
                   <option value="TOPUP">TOPUP</option>
                   <option value="Game">Game</option>
                 </select>
               </td>
-              <td colSpan={3} />
+              <td colSpan={3} />  {/* Себест. / Наценка / Итого */}
               <td>
-                <select
-                  className="a-col-filter"
-                  value={filters.in_stock}
-                  onChange={e => setFilter('in_stock', e.target.value)}
-                >
+                <select className="a-col-filter" value={filters.paused} onChange={e => setFilter('paused', e.target.value)}>
                   <option value="">Все</option>
-                  <option value="true">Есть</option>
-                  <option value="false">Нет</option>
+                  <option value="false">Активные</option>
+                  <option value="true">На паузе</option>
                 </select>
               </td>
               <td />
@@ -252,21 +325,50 @@ export default function ProductsPage() {
           </thead>
           <tbody>
             {loading
-              ? <tr><td colSpan={9} className="a-loading">Загрузка...</td></tr>
+              ? <tr><td colSpan={11} className="a-loading">Загрузка...</td></tr>
               : products.map(p => (
-                <tr key={p.product_id}>
+                <tr key={p.product_id} className={p.paused ? 'a-row--paused' : ''}>
                   <td>
-                    <div>{p.name}</div>
-                    <div className="a-muted" style={{ fontSize: '0.75rem', marginTop: 2 }}>{p.product_id}</div>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(p.product_id)}
+                      onChange={() => toggleOne(p.product_id)}
+                    />
+                  </td>
+                  <td className="a-nowrap a-muted" style={{ fontSize: '0.8rem' }}>{p.product_id}</td>
+                  <td className="a-col-name">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {p.paused && <span className="a-badge a-badge--red" title="На паузе">⏸</span>}
+                      <span>{p.name}</span>
+                    </div>
                   </td>
                   <td>{p.group_name}</td>
                   <td>{p.region}</td>
-                  <td><span className={`a-badge ${p.product_type === 'TOPUP' ? 'a-badge--orange' : p.product_type === 'Game' ? 'a-badge--green' : 'a-badge--purple'}`}>{p.product_type || '—'}</span></td>
+                  <td>
+                    <span className={`a-badge ${p.product_type === 'TOPUP' ? 'a-badge--orange' : p.product_type === 'Game' ? 'a-badge--green' : 'a-badge--purple'}`}>
+                      {p.product_type || '—'}
+                    </span>
+                  </td>
                   <td>₽{Number(p.price).toLocaleString('ru-RU')}</td>
-                  <td>{p.markup != null ? `${p.markup}%` : <span className="a-muted">глоб.</span>}</td>
-                  <td>{finalPrice(p) ? `₽${finalPrice(p).toLocaleString('ru-RU')}` : <span className="a-muted">—</span>}</td>
-                  <td><span className={`a-dot ${p.in_stock ? 'a-dot--green' : 'a-dot--red'}`} /></td>
+                  <td>
+                    {effectiveMarkup(p)}%
+                    {p.markup == null && <span className="a-muted" style={{ fontSize: '0.72rem', marginLeft: 4 }}>(глоб.)</span>}
+                  </td>
+                  <td>₽{finalPrice(p).toLocaleString('ru-RU')}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <span className={`a-dot ${p.in_stock ? 'a-dot--green' : 'a-dot--red'}`} />
+                      {p.paused && <span className="a-muted" style={{ fontSize: '0.75rem' }}>пауза</span>}
+                    </div>
+                  </td>
                   <td className="a-actions">
+                    <button
+                      className="a-btn a-btn--sm a-btn--ghost"
+                      title={p.paused ? 'Возобновить' : 'Поставить на паузу'}
+                      onClick={() => adminApi.pauseProducts([p.product_id], !p.paused).then(load)}
+                    >
+                      {p.paused ? '▶' : '⏸'}
+                    </button>
                     <button className="a-btn a-btn--sm a-btn--ghost" onClick={() => setEditing(p)}>✎</button>
                     <button className="a-btn a-btn--sm a-btn--danger" onClick={() => handleDelete(p.product_id, p.name)}>✕</button>
                   </td>

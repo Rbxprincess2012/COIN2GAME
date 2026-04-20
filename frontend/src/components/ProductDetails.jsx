@@ -51,23 +51,14 @@ function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, i
       <div className="details-grid">
         <div className="details-card">
           <span className="hero-tag">{product.category}</span>
-          <h2>{product.title}</h2>
-          <p className="card-meta">Платформа: {product.platform} · Регион: {product.region}</p>
-          <DescriptionBlock text={product.description} />
-          <div className="details-info">
-            <div>
-              <span className="label">Сервис</span>
-              <p>{product.service}</p>
-            </div>
-            <div>
-              <span className="label">Цена</span>
-              <p>₽{product.price.toLocaleString('ru-RU')}</p>
-            </div>
-            <div>
-              <span className="label">Адрес доставки</span>
-              <p>{userEmail || 'Email не указан'}</p>
+          <div className="details-title-row">
+            <h2>{product.title}</h2>
+            <div className="details-price-badge">
+              ₽{product.price.toLocaleString('ru-RU')}
             </div>
           </div>
+          <p className="card-meta">Платформа: {product.platform} · Регион: {product.region}</p>
+          <DescriptionBlock text={product.description} />
         </div>
         <div className="details-panel">
           <h3>Что будет дальше</h3>

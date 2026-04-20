@@ -47,10 +47,14 @@ app.get('/api/products', async (req, res) => {
       where.push(`in_stock = true`)
     }
     if (search) {
-      params.push(`%${search}%`)
-      where.push(`name ILIKE $${params.length}`)
+      const words = search.trim().split(/\s+/).filter(Boolean)
+      for (const word of words) {
+        params.push(`%${word}%`)
+        where.push(`name ILIKE $${params.length}`)
+      }
     }
 
+    where.push(`(paused IS NULL OR paused = false)`)
     const clause = `WHERE ${where.join(' AND ')}`
     const result = await pool.query(
       `SELECT product_id, name, group_name, region, price, markup, in_stock, product_type, description, image
@@ -89,11 +93,11 @@ app.get('/api/groups', async (req, res) => {
     const result = await pool.query(`
       SELECT group_name,
              COUNT(*) as total,
-             COUNT(*) FILTER (WHERE in_stock = true) as available
+             COUNT(*) FILTER (WHERE in_stock = true AND (paused IS NULL OR paused = false)) as available
       FROM products
       WHERE price IS NOT NULL
       GROUP BY group_name
-      HAVING COUNT(*) FILTER (WHERE in_stock = true) > 0
+      HAVING COUNT(*) FILTER (WHERE in_stock = true AND (paused IS NULL OR paused = false)) > 0
       ORDER BY available DESC
     `)
 
