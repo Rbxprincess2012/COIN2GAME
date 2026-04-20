@@ -11,17 +11,12 @@ function Logo() {
           <stop offset="100%" stopColor="#ffb347"/>
         </linearGradient>
       </defs>
-      {/* Outer coin ring */}
       <circle cx="18" cy="18" r="17" fill="url(#lg1)" opacity="0.18"/>
       <circle cx="18" cy="18" r="17" stroke="url(#lg1)" strokeWidth="1.5" fill="none"/>
-      {/* Inner filled coin */}
       <circle cx="18" cy="18" r="13" fill="url(#lg1)"/>
-      {/* Inner coin highlight ring */}
       <circle cx="18" cy="18" r="10.5" stroke="rgba(255,255,255,0.22)" strokeWidth="1" fill="none"/>
-      {/* D-pad cross (gamepad reference) */}
       <rect x="11" y="16.2" width="14" height="3.6" rx="1.8" fill="white"/>
       <rect x="16.2" y="11" width="3.6" height="14" rx="1.8" fill="white"/>
-      {/* Corner dots */}
       <circle cx="11.5" cy="11.5" r="1.4" fill="url(#lg2)" opacity="0.7"/>
       <circle cx="24.5" cy="11.5" r="1.4" fill="url(#lg2)" opacity="0.7"/>
       <circle cx="11.5" cy="24.5" r="1.4" fill="url(#lg2)" opacity="0.7"/>
@@ -33,10 +28,14 @@ function Logo() {
 function Header({ onLogin, onCartOpen, cartCount, isLoggedIn, userEmail, onLogoClick }) {
   return (
     <header className="site-header">
-      <button className="brand-btn" onClick={onLogoClick}>
-        <Logo />
-        <span className="brand-text">COIN<span className="brand-accent">2</span>GAME</span>
-      </button>
+      <div className="header-left">
+        <button className="brand-btn" onClick={onLogoClick}>
+          <Logo />
+          <span className="brand-text">COIN<span className="brand-accent">2</span>GAME</span>
+        </button>
+        <div className="header-divider" />
+        <span className="brand-tagline">Top up. Level up.</span>
+      </div>
 
       <div className="header-right">
         <nav className="site-nav">

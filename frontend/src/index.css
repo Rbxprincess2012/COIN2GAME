@@ -108,6 +108,21 @@ button {
   background: rgba(255,255,255,0.06);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.brand-tagline {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .header-divider {
   width: 1px;
   height: 28px;
@@ -456,6 +471,23 @@ button {
   padding-top: 16px;
 }
 
+.product-card--clickable {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.product-card--clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.product-card--clickable:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
 .card-badge {
   display: inline-flex;
   padding: 8px 12px;
@@ -541,6 +573,32 @@ button {
   color: var(--muted);
 }
 
+.details-description p {
+  margin: 0 0 12px;
+}
+
+.details-description ol {
+  margin: 4px 0 12px;
+  padding-left: 20px;
+}
+
+.details-description li {
+  margin-bottom: 6px;
+}
+
+.details-description strong {
+  color: var(--text);
+}
+
+.details-description a {
+  color: #865fff;
+  text-decoration: none;
+}
+
+.details-description a:hover {
+  text-decoration: underline;
+}
+
 .details-info {
   display: grid;
   gap: 18px;
@@ -562,32 +620,28 @@ button {
   margin-top: 24px;
 }
 
-.details-bottom-bar {
-  position: sticky;
-  bottom: 16px;
+.details-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 24px;
-  padding: 16px 20px;
+  margin-bottom: 20px;
+  padding: 14px 20px;
   border-radius: 20px;
   background: rgba(7, 14, 29, 0.96);
   border: 1px solid rgba(255,255,255,0.1);
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  z-index: 10;
+}
+
+.details-top-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .details-back-btn {
   flex-shrink: 0;
-}
-
-.details-bottom-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 .details-panel h3 {
@@ -1758,6 +1812,38 @@ button {
 .games-load-more {
   margin-top: 32px;
   text-align: center;
+}
+
+/* ── Scroll to top ──────────────────────────────────────────────────── */
+.scroll-to-top {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(7, 14, 29, 0.92);
+  backdrop-filter: blur(12px);
+  color: var(--text);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 200;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.scroll-to-top:hover {
+  transform: translateY(-3px);
+  border-color: rgba(134,95,255,0.5);
+  background: rgba(134,95,255,0.15);
+}
+
+.scroll-to-top:active {
+  transform: scale(0.93);
 }
 
 /* ── Game Card ──────────────────────────────────────────────────────────────── */

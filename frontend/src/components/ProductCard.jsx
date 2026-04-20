@@ -1,12 +1,15 @@
-function stripHtml(str) {
-  if (!str) return ''
-  return str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
-}
-
 function ProductCard({ product, onSelect, onAdd, showBadge = false }) {
   return (
-    <article className="card product-card">
-      {showBadge && <div className="card-badge">{product.badge}</div>}
+    <article
+      className="card product-card product-card--clickable"
+      onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && onSelect()}
+    >
+      {showBadge && product.badge && (
+        <div className="card-badge">{product.badge}</div>
+      )}
       <div className="card-body">
         <div className="card-title-group">
           <h3>{product.title}</h3>
@@ -16,8 +19,12 @@ function ProductCard({ product, onSelect, onAdd, showBadge = false }) {
         <div className="card-footer">
           <span className="card-region">Регион: {product.region}</span>
           <div className="card-actions">
-            <button className="btn-tertiary btn-sm" onClick={onSelect}>Подробнее</button>
-            <button className="btn-primary btn-sm" onClick={onAdd}>Купить</button>
+            <button
+              className="btn-primary btn-sm"
+              onClick={e => { e.stopPropagation(); onAdd() }}
+            >
+              Купить
+            </button>
           </div>
         </div>
       </div>

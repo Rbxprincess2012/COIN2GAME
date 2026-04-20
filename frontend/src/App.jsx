@@ -10,6 +10,7 @@ import PlatformGrid from './components/PlatformGrid'
 import PlatformPage from './components/PlatformPage'
 import GamesSection from './components/GamesSection'
 import GameDetails from './components/GameDetails'
+import ScrollToTop from './components/ScrollToTop'
 import { api } from './api'
 
 function App() {
@@ -64,13 +65,14 @@ function App() {
         if (!byGroup[p.service]) byGroup[p.service] = []
         byGroup[p.service].push(p)
       }
+      const BADGES = ['Хит продаж', 'Хит продаж', 'Хит продаж', 'Популярный', 'Популярный', 'Популярный', 'Выгодно', 'Выгодно', 'Выгодно']
       const picks = Object.values(byGroup).map(list => {
         const ru = list.filter(p => p.region === 'Россия' && p.price >= 500)
         const pool = ru.length ? ru : list.filter(p => p.price >= 500)
         if (!pool.length) return null
         return pool.reduce((a, b) => a.price <= b.price ? a : b)
       }).filter(Boolean).slice(0, 9)
-      setFeatured(picks)
+      setFeatured(picks.map((p, i) => ({ ...p, badge: BADGES[i] || 'Популярный' })))
     }).catch(() => {})
   }, [])
 
@@ -181,11 +183,6 @@ function App() {
         {/* ── Home ────────────────────────────────────────────────── */}
         {view === 'home' && (
           <>
-            <section className="hero-card hero-card--full">
-              <h1>Цифровые пополнения и подписки для геймеров</h1>
-              <p>Быстрая покупка валюты и ваучеров с мгновенной доставкой на экран и email.</p>
-            </section>
-
             <div className="home-search-bar">
               <input
                 type="text"
@@ -264,6 +261,7 @@ function App() {
       </main>
 
       <Footer />
+      <ScrollToTop />
 
       <LoginModal
         visible={loginVisible}
