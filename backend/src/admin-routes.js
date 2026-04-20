@@ -26,7 +26,7 @@ async function log(type, product_id = null, product_name = null, details = {}) {
 
 router.get('/products', async (req, res) => {
   try {
-    const { search, group, page = 1, limit = 50 } = req.query
+    const { search, group, region, product_type, in_stock, page = 1, limit = 50 } = req.query
     const offset = (Number(page) - 1) * Number(limit)
     const params = []
     const where = []
@@ -39,6 +39,16 @@ router.get('/products', async (req, res) => {
       params.push(group)
       where.push(`group_name = $${params.length}`)
     }
+    if (region) {
+      params.push(`%${region}%`)
+      where.push(`region ILIKE $${params.length}`)
+    }
+    if (product_type) {
+      params.push(product_type)
+      where.push(`product_type = $${params.length}`)
+    }
+    if (in_stock === 'true') where.push(`in_stock = true`)
+    if (in_stock === 'false') where.push(`in_stock = false`)
 
     const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const countRes = await pool.query(`SELECT COUNT(*) FROM products ${clause}`, params)

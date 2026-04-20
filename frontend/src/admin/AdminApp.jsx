@@ -3,12 +3,14 @@ import { getToken, saveToken, clearToken } from './adminApi'
 import ProductsPage from './pages/ProductsPage'
 import MarkupPage from './pages/MarkupPage'
 import LogsPage from './pages/LogsPage'
+import TokensPage from './pages/TokensPage'
 import './admin.css'
 
 const NAV = [
   { key: 'products', label: '📦 Товары' },
   { key: 'markup',   label: '💰 Наценка' },
   { key: 'logs',     label: '📋 Журнал' },
+  { key: 'tokens',   label: '🔑 Токены' },
 ]
 
 function LoginScreen({ onLogin }) {
@@ -98,6 +100,7 @@ export default function AdminApp() {
         {page === 'products' && <ProductsPage />}
         {page === 'markup'   && <MarkupPage />}
         {page === 'logs'     && <LogsPage />}
+        {page === 'tokens'   && <TokensPage />}
       </main>
     </div>
   )

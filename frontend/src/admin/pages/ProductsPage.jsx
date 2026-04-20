@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '../adminApi'
 
-const GROUPS = ['Все', 'APPLE ID', 'Nintendo', 'Playstation', 'Xbox', 'Steam',
-  'Valorant', 'PUBG Mobile', 'PUBG Battleground', 'Razer Gold']
-
 function EditModal({ product, onSave, onClose }) {
   const [form, setForm] = useState({
     name: product.name || '',
@@ -64,6 +61,7 @@ function EditModal({ product, onSave, onClose }) {
                 <option value="">—</option>
                 <option value="VOUCHER">VOUCHER</option>
                 <option value="TOPUP">TOPUP</option>
+                <option value="Game">Game</option>
               </select>
             </label>
             <label className="a-field a-field--check">
@@ -87,32 +85,53 @@ function EditModal({ product, onSave, onClose }) {
   )
 }
 
+const EMPTY_FILTERS = { search: '', group: '', region: '', product_type: '', in_stock: '' }
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
   const [total, setTotal] = useState(0)
-  const [search, setSearch] = useState('')
-  const [group, setGroup] = useState('')
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [page, setPage] = useState(1)
+  const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [editing, setEditing] = useState(null)
   const [syncResult, setSyncResult] = useState(null)
   const LIMIT = 50
 
+  useEffect(() => {
+    adminApi.getGroups().then(rows => setGroups(rows.map(r => r.group_name)))
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = { page, limit: LIMIT }
-      if (search) params.search = search
-      if (group) params.group = group
+      if (filters.search)       params.search       = filters.search
+      if (filters.group)        params.group        = filters.group
+      if (filters.region)       params.region       = filters.region
+      if (filters.product_type) params.product_type = filters.product_type
+      if (filters.in_stock)     params.in_stock     = filters.in_stock
       const data = await adminApi.getProducts(params)
       setProducts(data.products || [])
       setTotal(data.total || 0)
     } catch {}
     setLoading(false)
-  }, [search, group, page])
+  }, [filters, page])
 
   useEffect(() => { load() }, [load])
+
+  function setFilter(key, value) {
+    setFilters(f => ({ ...f, [key]: value }))
+    setPage(1)
+  }
+
+  function clearFilters() {
+    setFilters(EMPTY_FILTERS)
+    setPage(1)
+  }
+
+  const hasFilters = Object.values(filters).some(Boolean)
 
   async function handleSave(id, form) {
     await adminApi.updateProduct(id, form)
@@ -147,9 +166,14 @@ export default function ProductsPage() {
     <div className="a-page">
       <div className="a-page-header">
         <h2>Товары <span className="a-count">{total}</span></h2>
-        <button className="a-btn a-btn--primary" onClick={handleSync} disabled={syncing}>
-          {syncing ? 'Синхронизация...' : '↻ Синхронизировать с API'}
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {hasFilters && (
+            <button className="a-btn a-btn--ghost" onClick={clearFilters}>✕ Сбросить фильтры</button>
+          )}
+          <button className="a-btn a-btn--primary" onClick={handleSync} disabled={syncing}>
+            {syncing ? 'Синхронизация...' : '↻ Синхронизировать с API'}
+          </button>
+        </div>
       </div>
 
       {syncResult && (
@@ -158,25 +182,11 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <div className="a-filters">
-        <input
-          className="a-input"
-          placeholder="Поиск по названию или ID..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-        />
-        <select className="a-select" value={group} onChange={e => { setGroup(e.target.value); setPage(1) }}>
-          <option value="">Все группы</option>
-          {GROUPS.slice(1).map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-      </div>
-
       <div className="a-table-wrap">
         <table className="a-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Название</th>
+              <th>ID / Название</th>
               <th>Группа</th>
               <th>Регион</th>
               <th>Тип</th>
@@ -186,17 +196,72 @@ export default function ProductsPage() {
               <th>Наличие</th>
               <th></th>
             </tr>
+            <tr className="a-filter-row">
+              <td>
+                <input
+                  className="a-col-filter"
+                  placeholder="Поиск..."
+                  value={filters.search}
+                  onChange={e => setFilter('search', e.target.value)}
+                />
+              </td>
+              <td>
+                <select
+                  className="a-col-filter"
+                  value={filters.group}
+                  onChange={e => setFilter('group', e.target.value)}
+                >
+                  <option value="">Все</option>
+                  {groups.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </td>
+              <td>
+                <input
+                  className="a-col-filter"
+                  placeholder="Регион..."
+                  value={filters.region}
+                  onChange={e => setFilter('region', e.target.value)}
+                />
+              </td>
+              <td>
+                <select
+                  className="a-col-filter"
+                  value={filters.product_type}
+                  onChange={e => setFilter('product_type', e.target.value)}
+                >
+                  <option value="">Все</option>
+                  <option value="VOUCHER">VOUCHER</option>
+                  <option value="TOPUP">TOPUP</option>
+                  <option value="Game">Game</option>
+                </select>
+              </td>
+              <td colSpan={3} />
+              <td>
+                <select
+                  className="a-col-filter"
+                  value={filters.in_stock}
+                  onChange={e => setFilter('in_stock', e.target.value)}
+                >
+                  <option value="">Все</option>
+                  <option value="true">Есть</option>
+                  <option value="false">Нет</option>
+                </select>
+              </td>
+              <td />
+            </tr>
           </thead>
           <tbody>
             {loading
-              ? <tr><td colSpan={10} className="a-loading">Загрузка...</td></tr>
+              ? <tr><td colSpan={9} className="a-loading">Загрузка...</td></tr>
               : products.map(p => (
                 <tr key={p.product_id}>
-                  <td className="a-muted">{p.product_id}</td>
-                  <td>{p.name}</td>
+                  <td>
+                    <div>{p.name}</div>
+                    <div className="a-muted" style={{ fontSize: '0.75rem', marginTop: 2 }}>{p.product_id}</div>
+                  </td>
                   <td>{p.group_name}</td>
                   <td>{p.region}</td>
-                  <td><span className={`a-badge ${p.product_type === 'TOPUP' ? 'a-badge--orange' : 'a-badge--purple'}`}>{p.product_type || '—'}</span></td>
+                  <td><span className={`a-badge ${p.product_type === 'TOPUP' ? 'a-badge--orange' : p.product_type === 'Game' ? 'a-badge--green' : 'a-badge--purple'}`}>{p.product_type || '—'}</span></td>
                   <td>₽{Number(p.price).toLocaleString('ru-RU')}</td>
                   <td>{p.markup != null ? `${p.markup}%` : <span className="a-muted">глоб.</span>}</td>
                   <td>{finalPrice(p) ? `₽${finalPrice(p).toLocaleString('ru-RU')}` : <span className="a-muted">—</span>}</td>
