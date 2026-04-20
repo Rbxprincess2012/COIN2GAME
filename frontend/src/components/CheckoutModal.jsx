@@ -82,6 +82,22 @@ function ResultBlock({ result, onCopy, copied }) {
   )
 }
 
+// Load CloudPayments widget script once
+function loadCpScript() {
+  if (window.cp) return Promise.resolve()
+  return new Promise((resolve) => {
+    if (document.querySelector('script[data-cp]')) {
+      const wait = setInterval(() => { if (window.cp) { clearInterval(wait); resolve() } }, 100)
+      return
+    }
+    const s = document.createElement('script')
+    s.src = 'https://widget.cloudpayments.ru/bundles/cloudpayments.js'
+    s.setAttribute('data-cp', '1')
+    s.onload = resolve
+    document.head.appendChild(s)
+  })
+}
+
 export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, onClose, onLogin, productTypeMap }) {
   const [step, setStep]           = useState('summary') // summary | topup-form | paying | done-item | all-done | error
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -93,8 +109,10 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
   const [copied, setCopied]       = useState(false)
+  const [cpAvailable, setCpAvailable] = useState(null) // null=unknown, true/false
   const completedItems            = useRef([])
   const pollTimer                 = useRef(null)
+  const pendingTopupData          = useRef({})
 
   const currentItem = items[currentIdx]
   const total = items.reduce((sum, item) => sum + item.price, 0)
@@ -103,6 +121,12 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     if (item.product_type === 'Game') return 'VOUCHER'
     return productTypeMap?.[String(item.id)] || 'VOUCHER'
   }
+
+  // Preload widget script and check if CP is configured
+  useEffect(() => {
+    api.getConfig().then(cfg => setCpAvailable(!!cfg.cp_public_id))
+    loadCpScript()
+  }, [])
 
   const stopPolling = useCallback(() => {
     if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null }
@@ -118,6 +142,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     setTopupValues({})
     setError('')
     completedItems.current = []
+    pendingTopupData.current = {}
   }
 
   function handleClose() {
@@ -131,7 +156,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Start polling transaction status
+  // Poll ForeignPay transaction status (fallback / SBP flow)
   function startPolling(sbp_uuid) {
     stopPolling()
     pollTimer.current = setInterval(async () => {
@@ -149,14 +174,89 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
           setError('Время оплаты истекло. Попробуйте оформить снова.')
           setStep('error')
         }
-      } catch {
-        // network blip — keep polling
-      }
+      } catch { /* network blip */ }
     }, 3000)
   }
 
-  // Create order and transition to paying step
-  async function createOrder(topupExtra = {}) {
+  // ── CloudPayments widget flow ─────────────────────────────────────────────
+
+  async function openCpWidget(topupExtra = {}) {
+    setLoading(true)
+    setError('')
+
+    const config = await api.getConfig()
+    if (!config.cp_public_id) {
+      setError('Платёжная система не настроена. Обратитесь к администратору.')
+      setStep('error')
+      setLoading(false)
+      return
+    }
+
+    await loadCpScript()
+    setLoading(false)
+
+    const order_id = `c2g_${Date.now()}`
+    pendingTopupData.current = topupExtra
+
+    const widget = new window.cp.CloudPayments()
+
+    widget.oncomplete = async (result) => {
+      if (result.type === 'payment' && result.status === 'success') {
+        setStep('paying')
+        try {
+          const type = getType(currentItem)
+          const data = await api.cpComplete({
+            transaction_id: result.data?.transactionId,
+            order_id,
+            product_id: currentItem.id,
+            product_type: type,
+            email: userEmail,
+            topup_data: type === 'TOPUP' ? pendingTopupData.current : undefined,
+          })
+
+          // Результат может прийти сразу или через polling
+          const extracted = extractResult(data)
+          if (extracted) {
+            completedItems.current.push({ item: currentItem, result: extracted })
+            setItemResult(extracted)
+            setStep('done-item')
+          } else if (data.sbp_uuid || data.transaction_id) {
+            setSbpData(data)
+            startPolling(data.sbp_uuid || data.transaction_id)
+          } else {
+            setError(data.comment || data.error || 'Товар не удалось доставить. Свяжитесь с поддержкой.')
+            setStep('error')
+          }
+        } catch {
+          setError('Ошибка соединения с сервером')
+          setStep('error')
+        }
+      } else if (result.type === 'cancel') {
+        // Пользователь закрыл виджет — возвращаемся
+        setStep(getType(currentItem) === 'TOPUP' && Object.keys(topupExtra).length ? 'topup-form' : 'summary')
+      } else {
+        setError(result.message || 'Оплата не прошла. Попробуйте ещё раз.')
+        setStep('error')
+      }
+    }
+
+    widget.start({
+      publicTerminalId: config.cp_public_id,
+      amount: currentItem.price,
+      currency: 'RUB',
+      description: currentItem.title,
+      externalId: order_id,
+      receiptEmail: userEmail || undefined,
+      skin: 'modern',
+      culture: 'ru-RU',
+      retryPayment: true,
+      emailBehavior: userEmail ? 'Hidden' : 'Required',
+    })
+  }
+
+  // ── Fallback: ForeignPay SBP flow ─────────────────────────────────────────
+
+  async function createOrderSbp(topupExtra = {}) {
     setLoading(true)
     setError('')
     try {
@@ -166,19 +266,9 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
 
       let data
       if (type === 'VOUCHER') {
-        data = await api.buyVoucher({
-          product_id: parseInt(currentItem.id),
-          email: userEmail,
-          success_url,
-          order_id,
-        })
+        data = await api.buyVoucher({ product_id: parseInt(currentItem.id), email: userEmail, success_url, order_id })
       } else {
-        data = await api.buyTopup({
-          ...topupExtra,
-          product_id: parseInt(currentItem.id),
-          success_url,
-          order_id,
-        })
+        data = await api.buyTopup({ ...topupExtra, product_id: parseInt(currentItem.id), success_url, order_id })
       }
 
       if (!data.status) {
@@ -192,14 +282,15 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
       setStep('paying')
       if (data.sbp_url) window.open(data.sbp_url, '_blank')
       startPolling(data.sbp_uuid)
-    } catch (e) {
+    } catch {
       setError('Ошибка соединения с сервером')
       setStep('error')
     }
     setLoading(false)
   }
 
-  // Load TOPUP form fields
+  // ── Shared handlers ───────────────────────────────────────────────────────
+
   async function loadTopupForm() {
     setLoadingForm(true)
     try {
@@ -219,14 +310,20 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     const type = getType(currentItem)
     if (type === 'TOPUP') {
       loadTopupForm()
+    } else if (cpAvailable) {
+      openCpWidget()
     } else {
-      createOrder()
+      createOrderSbp()
     }
   }
 
   function handleTopupSubmit(e) {
     e.preventDefault()
-    createOrder(topupValues)
+    if (cpAvailable) {
+      openCpWidget(topupValues)
+    } else {
+      createOrderSbp(topupValues)
+    }
   }
 
   function handleNextItem() {
@@ -240,6 +337,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
       setTopupFields([])
       setTopupValues({})
       setError('')
+      pendingTopupData.current = {}
       setStep('summary')
     }
   }
@@ -290,8 +388,17 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
             </div>
 
             <button className="btn-primary checkout-btn" onClick={handlePay} disabled={loading || loadingForm}>
-              {loadingForm ? 'Загрузка...' : isLoggedIn ? `Оплатить ₽${currentItem?.price.toLocaleString('ru-RU')}` : 'Войти и оплатить'}
+              {loadingForm ? 'Загрузка...'
+                : !isLoggedIn ? 'Войти и оплатить'
+                : cpAvailable ? `💳 Оплатить картой ₽${currentItem?.price.toLocaleString('ru-RU')}`
+                : `Оплатить ₽${currentItem?.price.toLocaleString('ru-RU')}`
+              }
             </button>
+            {cpAvailable && isLoggedIn && (
+              <p className="checkout-meta-sub" style={{ textAlign: 'center', marginTop: 8 }}>
+                Visa, Mastercard, МИР — безопасная оплата через CloudPayments
+              </p>
+            )}
           </>
         )}
 
@@ -313,7 +420,9 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
                 />
               ))}
               <button type="submit" className="btn-primary checkout-btn" disabled={loading}>
-                {loading ? 'Создаём заказ...' : `Оплатить ₽${currentItem?.price.toLocaleString('ru-RU')}`}
+                {loading ? 'Подождите...'
+                  : cpAvailable ? `💳 Оплатить картой ₽${currentItem?.price.toLocaleString('ru-RU')}`
+                  : `Оплатить ₽${currentItem?.price.toLocaleString('ru-RU')}`}
               </button>
             </form>
           </>

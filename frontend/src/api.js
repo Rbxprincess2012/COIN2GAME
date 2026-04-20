@@ -14,6 +14,12 @@ async function apiGet(path, params = {}) {
 }
 
 export const api = {
+  // Публичный конфиг (cp_public_id и т.д.)
+  getConfig: () => apiGet('/api/config'),
+
+  // CloudPayments: верификация + доставка товара
+  cpComplete: (body) => apiPost('/api/cp/complete', body),
+
   // 1.1 Все продукты (с типами TOPUP/VOUCHER)
   fpProducts: (params = {}) => apiGet('/api/fp/products', params),
 

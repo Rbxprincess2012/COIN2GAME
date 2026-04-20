@@ -330,6 +330,68 @@ app.get('/api/games', async (req, res) => {
   }
 })
 
+// ── CloudPayments integration ────────────────────────────────────────────────
+
+async function getCpCredentials() {
+  const result = await pool.query(
+    `SELECT key, value FROM settings WHERE key IN ('token_cloudpayments', 'token_cloudpayments_secret')`
+  )
+  const s = {}
+  for (const row of result.rows) {
+    try { s[row.key] = JSON.parse(row.value) } catch { s[row.key] = row.value }
+  }
+  return { publicId: s['token_cloudpayments'] || '', secretKey: s['token_cloudpayments_secret'] || '' }
+}
+
+// GET /api/config — публичные настройки для фронтенда (без секретов)
+app.get('/api/config', async (req, res) => {
+  try {
+    const { publicId } = await getCpCredentials()
+    res.json({ cp_public_id: publicId || null })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// POST /api/cp/complete — верификация CP-транзакции и доставка товара через FP deposit
+app.post('/api/cp/complete', async (req, res) => {
+  try {
+    const { transaction_id, order_id, product_id, product_type, email, topup_data } = req.body
+    const { publicId, secretKey } = await getCpCredentials()
+
+    // Верифицируем транзакцию через CloudPayments API
+    if (publicId && secretKey) {
+      const cpRes = await fetch(`https://api.cloudpayments.ru/payments/get/${transaction_id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${publicId}:${secretKey}`).toString('base64')}`,
+        },
+        body: JSON.stringify({}),
+      })
+      const cpData = await cpRes.json()
+      if (!cpData.Success || cpData.Model?.Status !== 'Completed') {
+        console.error('CP verify failed:', cpData)
+        return res.status(400).json({ error: 'Транзакция не подтверждена CloudPayments', detail: cpData?.Message })
+      }
+    }
+
+    // Доставляем товар через ForeignPay deposit (с нашего баланса мерчанта)
+    const path = product_type === 'TOPUP' ? '/topup/deposit' : '/voucher/deposit'
+    const request = {
+      product_id: parseInt(product_id),
+      email,
+      order_id,
+      ...(product_type === 'TOPUP' && topup_data ? topup_data : {}),
+    }
+    const data = await fpPost(FP_PROXY, { path, request })
+    res.json(data)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Start ────────────────────────────────────────────────────────────────────
 
 const port = process.env.PORT || 4000
