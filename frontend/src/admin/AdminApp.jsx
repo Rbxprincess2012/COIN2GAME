@@ -4,13 +4,15 @@ import ProductsPage from './pages/ProductsPage'
 import MarkupPage from './pages/MarkupPage'
 import LogsPage from './pages/LogsPage'
 import TokensPage from './pages/TokensPage'
+import WildberriesPage from './pages/WildberriesPage'
 import './admin.css'
 
 const NAV = [
-  { key: 'products', label: '📦 Товары' },
-  { key: 'markup',   label: '💰 Наценка' },
-  { key: 'logs',     label: '📋 Журнал' },
-  { key: 'tokens',   label: '🔑 Токены' },
+  { key: 'products',     label: '📦 Товары' },
+  { key: 'markup',       label: '💰 Наценка' },
+  { key: 'wildberries',  label: '🛍 Wildberries' },
+  { key: 'logs',         label: '📋 Журнал' },
+  { key: 'tokens',       label: '🔑 Токены' },
 ]
 
 function LoginScreen({ onLogin }) {
@@ -97,10 +99,11 @@ export default function AdminApp() {
       </aside>
 
       <main className="a-main">
-        {page === 'products' && <ProductsPage />}
-        {page === 'markup'   && <MarkupPage />}
-        {page === 'logs'     && <LogsPage />}
-        {page === 'tokens'   && <TokensPage />}
+        {page === 'products'    && <ProductsPage />}
+        {page === 'markup'      && <MarkupPage />}
+        {page === 'wildberries' && <WildberriesPage />}
+        {page === 'logs'        && <LogsPage />}
+        {page === 'tokens'      && <TokensPage />}
       </main>
     </div>
   )

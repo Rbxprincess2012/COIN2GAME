@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { pool } from './db.js'
+import xlsx from 'xlsx'
 
 const router = Router()
 
@@ -26,7 +27,9 @@ async function log(type, product_id = null, product_name = null, details = {}) {
 
 router.get('/products', async (req, res) => {
   try {
-    const { id, search, group, region, product_type, in_stock, paused, page = 1, limit = 50 } = req.query
+    const { id, search, group, region, product_type, in_stock, paused,
+            manual_price, margin_below, factor_site, factor_wb,
+            page = 1, limit = 50 } = req.query
     const offset = (Number(page) - 1) * Number(limit)
     const params = []
     const where = []
@@ -44,8 +47,8 @@ router.get('/products', async (req, res) => {
       where.push(`group_name = $${params.length}`)
     }
     if (region) {
-      params.push(`%${region}%`)
-      where.push(`region ILIKE $${params.length}`)
+      params.push(region)
+      where.push(`region = $${params.length}`)
     }
     if (product_type) {
       params.push(product_type)
@@ -55,13 +58,24 @@ router.get('/products', async (req, res) => {
     if (in_stock === 'false') where.push(`in_stock = false`)
     if (paused === 'true') where.push(`paused = true`)
     if (paused === 'false') where.push(`(paused IS NULL OR paused = false)`)
+    if (manual_price === 'true') where.push(`(price_site IS NOT NULL OR price_wb IS NOT NULL)`)
+    if (margin_below === 'true' && factor_site && factor_wb) {
+      params.push(Number(factor_site), Number(factor_wb))
+      const fs = params.length - 1
+      const fw = params.length
+      where.push(`(
+        (price_site IS NOT NULL AND price_site::numeric < CEIL(price::numeric * $${fs}))
+        OR
+        (price_wb   IS NOT NULL AND price_wb::numeric   < CEIL(price::numeric * $${fw}))
+      )`)
+    }
 
     const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const countRes = await pool.query(`SELECT COUNT(*) FROM products ${clause}`, params)
 
     params.push(Number(limit), offset)
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, in_stock, paused, product_type, currency, description, updated_at
+      `SELECT product_id, name, group_name, region, price, markup, price_site, price_wb, in_stock, paused, product_type, currency, description, updated_at
        FROM products ${clause}
        ORDER BY group_name, name
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -69,6 +83,17 @@ router.get('/products', async (req, res) => {
     )
 
     res.json({ products: result.rows, total: parseInt(countRes.rows[0].count) })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+router.get('/products/regions', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT region FROM products WHERE region IS NOT NULL ORDER BY region`
+    )
+    res.json(result.rows.map(r => r.region))
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
@@ -102,14 +127,17 @@ router.post('/products/pause', async (req, res) => {
 
 router.put('/products/:id', async (req, res) => {
   try {
-    const { name, price, region, group_name, product_type, in_stock, description, markup } = req.body
+    const { name, price, region, group_name, product_type, in_stock, description, markup, price_site, price_wb } = req.body
     const result = await pool.query(
       `UPDATE products
        SET name=$1, price=$2, region=$3, group_name=$4, product_type=$5,
-           in_stock=$6, description=$7, markup=$8, updated_at=NOW()
-       WHERE product_id=$9 RETURNING *`,
+           in_stock=$6, description=$7, markup=$8, price_site=$9, price_wb=$10, updated_at=NOW()
+       WHERE product_id=$11 RETURNING *`,
       [name, price, region, group_name, product_type, in_stock, description,
-       markup !== '' ? markup : null, req.params.id]
+       markup !== '' && markup != null ? markup : null,
+       price_site !== '' && price_site != null ? price_site : null,
+       price_wb   !== '' && price_wb   != null ? price_wb   : null,
+       req.params.id]
     )
     await log('PRODUCT_UPDATE', req.params.id, name, req.body)
     res.json(result.rows[0])
@@ -229,7 +257,9 @@ router.get('/settings', async (req, res) => {
   try {
     const result = await pool.query('SELECT key, value FROM settings')
     const settings = {}
-    for (const row of result.rows) settings[row.key] = row.value
+    for (const row of result.rows) {
+      try { settings[row.key] = JSON.parse(row.value) } catch { settings[row.key] = row.value }
+    }
     res.json(settings)
   } catch (e) {
     res.status(500).json({ error: e.message })
@@ -247,6 +277,107 @@ router.put('/settings', async (req, res) => {
     }
     await log('SETTINGS_UPDATE', null, null, req.body)
     res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── Wildberries commission sync ───────────────────────────────────────────────
+
+export async function syncWbCommissions() {
+  const settingsRes = await pool.query(
+    `SELECT key, value FROM settings WHERE key IN ('wb_marina_token', 'wb_tatyana_token')`
+  )
+  const s = {}
+  for (const row of settingsRes.rows) s[row.key] = row.value
+  const token = s['wb_marina_token'] || s['wb_tatyana_token']
+  if (!token) throw new Error('Нет токена WB — заполните токен в разделе Wildberries')
+
+  const res = await fetch('https://common-api.wildberries.ru/api/v1/tariffs/commission', {
+    headers: { Authorization: token },
+  })
+  if (!res.ok) throw new Error(`WB API вернул ${res.status}`)
+  const data = await res.json()
+  const commissions = data.report || data
+
+  await pool.query(
+    `INSERT INTO settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`,
+    ['wb_commissions_cache', JSON.stringify(commissions)]
+  )
+  await pool.query(
+    `INSERT INTO settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`,
+    ['wb_commissions_updated_at', JSON.stringify(new Date().toISOString())]
+  )
+  return { ok: true, count: Array.isArray(commissions) ? commissions.length : 0 }
+}
+
+router.post('/wb/sync-commissions', async (req, res) => {
+  try {
+    const result = await syncWbCommissions()
+    await log('WB_COMMISSIONS_SYNC', null, null, result)
+    res.json(result)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── WB артикулы: синхронизация и сопоставление с нашими товарами ─────────────
+
+export async function syncWbArticles() {
+  const settingsRes = await pool.query(
+    `SELECT key, value FROM settings WHERE key IN ('wb_marina_token', 'wb_tatyana_token')`
+  )
+  const s = {}
+  for (const row of settingsRes.rows) s[row.key] = row.value
+  const token = s['wb_marina_token'] || s['wb_tatyana_token']
+  if (!token) throw new Error('Нет токена WB')
+
+  // Получаем все товары постранично
+  let offset = 0
+  const limit = 1000
+  const all = []
+  while (true) {
+    const res = await fetch(
+      `https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=${limit}&offset=${offset}`,
+      { headers: { Authorization: token } }
+    )
+    if (!res.ok) throw new Error(`WB API вернул ${res.status}`)
+    const data = await res.json()
+    const list = data?.data?.listGoods || []
+    all.push(...list)
+    if (list.length < limit) break
+    offset += limit
+  }
+
+  let matched = 0
+  let unmatched = 0
+
+  for (const g of all) {
+    // vendorCode вида "V-APPLE-1845" → product_id = "1845"
+    // Пропускаем EDBS-дубли (второй аккаунт) и не-V-артикулы
+    if (!g.vendorCode.startsWith('V-')) continue
+    const parts = g.vendorCode.split('-')
+    const productId = parts[parts.length - 1]
+
+    const r = await pool.query(
+      `UPDATE products SET wb_nmid=$1, wb_article=$2, updated_at=NOW()
+       WHERE product_id=$3 RETURNING product_id`,
+      [g.nmID, g.vendorCode, productId]
+    )
+    if (r.rows.length > 0) matched++
+    else unmatched++
+  }
+
+  await log('WB_ARTICLES_SYNC', null, null, { total: all.length, matched, unmatched })
+  return { ok: true, total: all.length, matched, unmatched }
+}
+
+router.post('/wb/sync-articles', async (req, res) => {
+  try {
+    const result = await syncWbArticles()
+    res.json(result)
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
@@ -278,6 +409,110 @@ router.get('/logs', async (req, res) => {
     )
 
     res.json({ logs: result.rows, total: parseInt(countRes.rows[0].count) })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// ── WB Excel template export ──────────────────────────────────────────────────
+
+const TYPE_MAP = {
+  'APPLE ID':        'подписка на игровой сервис',
+  'Nintendo':        'подписка на игровой сервис',
+  'Playstation':     'подписка на игровой сервис',
+  'Steam':           'подписка на игровой сервис',
+  'Xbox':            'подписка на игровой сервис',
+  'PUBG Mobile':     'внутренняя игровая валюта',
+  'PUBG Battleground': 'внутренняя игровая валюта',
+  'Razer Gold':      'внутренняя игровая валюта',
+  'Valorant':        'внутренняя игровая валюта',
+}
+
+router.get('/wb/export-template', async (req, res) => {
+  try {
+    // Load settings
+    const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('markup_global','wb_commission')`)
+    const s = {}
+    for (const row of sRes.rows) s[row.key] = row.value
+    const targetMargin = parseFloat(s.markup_global) || 10
+    const wbCommission = parseFloat(s.wb_commission) || 25
+    const TAX = 6 // Татьяна УСН
+    const wbDeduct = wbCommission + TAX
+    const factor = (1 + targetMargin / 100) / (1 - wbDeduct / 100)
+
+    // Load products
+    const pRes = await pool.query(`
+      SELECT product_id, name, group_name, region, price, price_wb, wb_article, image, image2, description
+      FROM products
+      WHERE wb_article IS NOT NULL AND image LIKE '%Media%'
+        AND (paused IS NULL OR paused = false)
+      ORDER BY group_name, name
+    `)
+    const products = pRes.rows
+
+    // Load template
+    const templatePath = 'D:/Пополнение/_Claude/Подписки игровых сервисов заливааем.xlsx'
+    const wb = xlsx.readFile(templatePath)
+    const ws = wb.Sheets[wb.SheetNames[0]]
+
+    // Clear existing data rows (row 5+, index 4+)
+    const range = xlsx.utils.decode_range(ws['!ref'])
+    for (let r = 4; r <= range.e.r; r++) {
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        delete ws[xlsx.utils.encode_cell({ r, c })]
+      }
+    }
+
+    // Fill data rows starting at row 5 (index 4)
+    const set = (r, c, v) => {
+      ws[xlsx.utils.encode_cell({ r, c })] = { v, t: typeof v === 'number' ? 'n' : 's' }
+    }
+
+    // Build group number map by group_name order
+    const groupMap = {}
+    let groupNum = 0
+    for (const p of products) {
+      if (!(p.group_name in groupMap)) groupMap[p.group_name] = ++groupNum
+    }
+
+    products.forEach((p, i) => {
+      const r = 4 + i
+      const cost = parseFloat(p.price)
+      const price = p.price_wb != null ? Math.round(parseFloat(p.price_wb)) : Math.ceil(cost * factor)
+      const photos = [p.image, p.image2].filter(Boolean).join(';')
+      const subType = TYPE_MAP[p.group_name] || 'подписка на игровой сервис'
+
+      set(r, 0,  groupMap[p.group_name])               // Группа (по игре/сервису)
+      set(r, 1,  p.wb_article)                         // Артикул продавца
+      set(r, 3,  p.name)                               // Наименование
+      set(r, 4,  'Подписки игровых сервисов')          // Категория
+      set(r, 6,  p.description || '')                  // Описание
+      set(r, 7,  photos)                               // Фото
+      set(r, 9,  'Не нужен')                           // КИЗ
+      set(r, 10, 0.01)                                 // Вес с упаковкой
+      set(r, 12, 'Нет')                                // Только для ИП
+      set(r, 14, 1)                                    // Количество
+      set(r, 15, 'Нет')                                // Подтверждаю
+      set(r, 17, price)                                // Цена
+      set(r, 19, 1)                                    // Вес товара
+      set(r, 20, 1)                                    // Высота
+      set(r, 21, 1)                                    // Длина
+      set(r, 22, 1)                                    // Ширина
+      set(r, 24, p.group_name)                         // Вид игрового сервиса
+      set(r, 27, 'Код пополнения; код активации; электронный ключ') // Комплектация
+      set(r, 29, p.region || '')                       // Территория активации
+      set(r, 30, subType)                              // Тип подписки
+    })
+
+    // Update sheet range
+    ws['!ref'] = xlsx.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 4 + products.length - 1, c: range.e.c } })
+
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' })
+    res.setHeader('Content-Disposition', 'attachment; filename="WB_%D0%A2%D0%B0%D1%82%D1%8C%D1%8F%D0%BD%D0%B0.xlsx"')
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.send(buf)
+
+    await log('WB_TEMPLATE_EXPORT', null, null, { count: products.length })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

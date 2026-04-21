@@ -22,6 +22,11 @@ async function req(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   })
   if (res.status === 401) throw new Error('UNAUTHORIZED')
+  const ct = res.headers.get('content-type') || ''
+  if (!ct.includes('application/json')) {
+    const text = await res.text()
+    throw new Error(`Сервер вернул не JSON (${res.status}): ${text.slice(0, 200)}`)
+  }
   return res.json()
 }
 
@@ -32,6 +37,7 @@ export const adminApi = {
     return req('GET', `/products${q ? '?' + q : ''}`)
   },
   getGroups: () => req('GET', '/products/groups'),
+  getRegions: () => req('GET', '/products/regions'),
   updateProduct: (id, data) => req('PUT', `/products/${id}`, data),
   deleteProduct: (id) => req('DELETE', `/products/${id}`),
   syncProducts: () => req('POST', '/products/sync'),
@@ -40,6 +46,27 @@ export const adminApi = {
   // Settings
   getSettings: () => req('GET', '/settings'),
   updateSettings: (data) => req('PUT', '/settings', data),
+
+  // Wildberries
+  syncWbCommissions: () => req('POST', '/wb/sync-commissions'),
+  syncWbArticles: () => req('POST', '/wb/sync-articles'),
+  downloadWbTemplate: async () => {
+    const res = await fetch('/api/admin/wb/export-template', {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    if (!res.ok) {
+      let msg = `Ошибка ${res.status}`
+      try { msg = (await res.json()).error || msg } catch { msg = (await res.text().catch(() => msg)).slice(0, 200) }
+      throw new Error(msg)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'WB_Татьяна.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 
   // Logs
   getLogs: (params = {}) => {

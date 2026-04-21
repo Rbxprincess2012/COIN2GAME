@@ -1,8 +1,15 @@
+// Блок для диагностики — пишет в лог сразу после запуска
+console.log("=== ДИАГНОСТИКА: ПРИЛОЖЕНИЕ ЗАПУСКАЕТСЯ ===");
+console.log("Текущая директория:", process.cwd());
+console.log("PORT из окружения:", process.env.PORT);
+console.log("DATABASE_URL определена?", !!process.env.DATABASE_URL);
+console.log("NODE_ENV:", process.env.NODE_ENV);
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import cron from 'node-cron'
 import { pool } from './db.js'
-import adminRoutes from './admin-routes.js'
+import adminRoutes, { syncWbCommissions, syncWbArticles } from './admin-routes.js'
 
 dotenv.config()
 
@@ -19,22 +26,38 @@ async function getMarkupMap() {
   const result = await pool.query('SELECT key, value FROM settings')
   const map = {}
   for (const row of result.rows) {
-    map[row.key] = typeof row.value === 'number' ? row.value : parseFloat(row.value)
+    let v = row.value
+    try { v = JSON.parse(v) } catch {}
+    map[row.key] = typeof v === 'number' ? v : parseFloat(v)
   }
   return map
 }
 
+const ENTREPRENEUR_TAX = { marina: 8, tatyana: 6 }
+
+// Цена продажи на сайте: себестоимость × (1 + маржа%) ÷ (1 − (CP_комиссия% + налог%))
 function applyMarkup(price, groupName, productMarkup, markupMap) {
   let pct = productMarkup != null
     ? parseFloat(productMarkup)
     : (markupMap[`markup_${(groupName || '').toLowerCase().replace(/\s+/g, '_')}`] ?? markupMap['markup_global'] ?? 0)
   if (isNaN(pct)) pct = 0
-  return Math.round(parseFloat(price) * (1 + pct / 100))
+  const cp = parseFloat(markupMap['cp_commission']) || 0
+  const entKey = (markupMap['active_entrepreneur'] || 'tatyana').toString().replace(/"/g, '')
+  const tax = ENTREPRENEUR_TAX[entKey] ?? 6
+  const deduction = (cp + tax) / 100
+  const base = parseFloat(price) * (1 + pct / 100)
+  return Math.round(deduction > 0 && deduction < 1 ? base / (1 - deduction) : base)
 }
 
 // GET /api/products?group=Steam&in_stock=true&search=pubg
 app.get('/api/products', async (req, res) => {
   try {
+    const stopRow = await pool.query(`SELECT value FROM settings WHERE key='shop_stopped'`)
+    const stopped = stopRow.rows[0]?.value
+    if (stopped === 'true' || stopped === '"true"' || stopped === true) {
+      return res.json({ products: [], stopped: true })
+    }
+
     const { group, in_stock, search } = req.query
     const params = []
     const where = ['price IS NOT NULL']
@@ -57,7 +80,7 @@ app.get('/api/products', async (req, res) => {
     where.push(`(paused IS NULL OR paused = false)`)
     const clause = `WHERE ${where.join(' AND ')}`
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, in_stock, product_type, description, image
+      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image
        FROM products ${clause}
        ORDER BY group_name, price`,
       params
@@ -70,7 +93,7 @@ app.get('/api/products', async (req, res) => {
       service: p.group_name,
       platform: p.group_name,
       category: 'Цифровые товары',
-      price: applyMarkup(p.price, p.group_name, p.markup, markupMap),
+      price: p.price_site != null ? Math.round(parseFloat(p.price_site)) : applyMarkup(p.price, p.group_name, p.markup, markupMap),
       base_price: parseFloat(p.price),
       region: p.region || 'Любой',
       description: p.description || '',
@@ -396,7 +419,47 @@ app.post('/api/cp/complete', async (req, res) => {
   }
 })
 
-// ── Start ────────────────────────────────────────────────────────────────────
+// ── Cron jobs ─────────────────────────────────────────────────────────────────
+
+// Ежедневно в 03:15 обновляем комиссии WB
+cron.schedule('15 3 * * *', async () => {
+  console.log('[cron] WB commission sync starting...')
+  try {
+    const result = await syncWbCommissions()
+    console.log(`[cron] WB commission sync OK: ${result.count} categories`)
+  } catch (e) {
+    console.error('[cron] WB commission sync failed:', e.message)
+  }
+})
+
+// Ежедневно в 03:20 синхронизируем артикулы WB
+cron.schedule('20 3 * * *', async () => {
+  console.log('[cron] WB articles sync starting...')
+  try {
+    const result = await syncWbArticles()
+    console.log(`[cron] WB articles sync OK: matched ${result.matched}/${result.total}`)
+  } catch (e) {
+    console.error('[cron] WB articles sync failed:', e.message)
+  }
+})
+
+// ── Health check ─────────────────────────────────────────────────────────────
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1')
+    res.json({ ok: true, uptime: Math.floor(process.uptime()) })
+  } catch (e) {
+    res.status(503).json({ ok: false, error: e.message })
+  }
+})
+
+// ── Start ─────────────────────────────────────────────────────────────────────
 
 const port = process.env.PORT || 4000
+// Простой логгер всех запросов
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] Получен запрос: ${req.method} ${req.url}`);
+    next();
+});
 app.listen(port, () => console.log(`Backend running on http://localhost:${port}`))
