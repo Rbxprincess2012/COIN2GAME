@@ -327,18 +327,12 @@ export default function ProductsPage() {
   async function handleSync() {
     setSyncing(true)
     setSyncResult(null)
-    const res = await adminApi.syncProducts()
-    setSyncResult(res)
+    setSyncGamesResult(null)
+    const [products, games] = await Promise.all([adminApi.syncProducts(), adminApi.syncGames()])
+    setSyncResult(products)
+    setSyncGamesResult(games)
     setSyncing(false)
     load()
-  }
-
-  async function handleSyncGames() {
-    setSyncingGames(true)
-    setSyncGamesResult(null)
-    const res = await adminApi.syncGames()
-    setSyncGamesResult(res)
-    setSyncingGames(false)
   }
 
   // ── Price inline editing ───────────────────────────────────────────────────
@@ -474,10 +468,7 @@ export default function ProductsPage() {
           </div>
 
           <button className="a-btn a-btn--primary" onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Синхронизация...' : '↻ Товары с API'}
-          </button>
-          <button className="a-btn a-btn--ghost" onClick={handleSyncGames} disabled={syncingGames}>
-            {syncingGames ? 'Синхронизация...' : '↻ Игры с API'}
+            {syncing ? 'Синхронизация...' : '↻ Синхронизировать с API'}
           </button>
           <button
             className={shopStopped ? 'a-btn a-btn--success' : 'a-btn a-btn--danger'}
