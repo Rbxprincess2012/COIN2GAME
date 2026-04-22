@@ -181,16 +181,18 @@ router.post('/products/sync', async (req, res) => {
     for (const p of data) {
       const blocked = isBlockedInRussia(p.name, p.region)
       const r = await pool.query(
-        `INSERT INTO products (product_id, name, price, in_stock, group_name, product_type, region, paused, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        `INSERT INTO products (product_id, name, price, in_stock, group_name, product_type, region, description, image, paused, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
          ON CONFLICT (product_id) DO UPDATE SET
            price = EXCLUDED.price,
            in_stock = EXCLUDED.in_stock,
            product_type = EXCLUDED.product_type,
+           description = COALESCE(EXCLUDED.description, products.description),
+           image = COALESCE(EXCLUDED.image, products.image),
            paused = CASE WHEN products.paused = true THEN true ELSE EXCLUDED.paused END,
            updated_at = NOW()
          RETURNING (xmax = 0) AS inserted`,
-        [String(p.product_id), p.name, p.price, p.in_stock, p.group, p.type, p.region, blocked]
+        [String(p.product_id), p.name, p.price, p.in_stock, p.group, p.type, p.region, p.description || null, p.image || null, blocked]
       )
       if (r.rows[0]?.inserted) inserted++
       else updated++
