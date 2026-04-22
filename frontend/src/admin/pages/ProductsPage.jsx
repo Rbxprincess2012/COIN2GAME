@@ -194,7 +194,7 @@ function EditModal({ product, onSave, onClose }) {
   )
 }
 
-const EMPTY_FILTERS = { id: '', search: '', group: '', region: '', product_type: '', in_stock: '', paused: '', manual_price: '', margin_below: '' }
+const EMPTY_FILTERS = { id: '', search: '', group: '', region: '', product_type: '', status: 'active', manual_price: '', margin_below: '' }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -253,8 +253,9 @@ export default function ProductsPage() {
       if (filters.group)        params.group        = filters.group
       if (filters.region)       params.region       = filters.region
       if (filters.product_type) params.product_type = filters.product_type
-      if (filters.in_stock)       params.in_stock       = filters.in_stock
-      if (filters.paused)         params.paused         = filters.paused
+      if (filters.status === 'active')       { params.in_stock = 'true';  params.paused = 'false' }
+      if (filters.status === 'out_of_stock') { params.in_stock = 'false' }
+      if (filters.status === 'paused')       { params.paused   = 'true' }
       if (filters.manual_price)   params.manual_price   = filters.manual_price
       if (filters.margin_below === 'true') {
         const ent = ENTREPRENEURS.find(e => e.key === entrepreneurKey) || ENTREPRENEURS[1]
@@ -595,10 +596,11 @@ export default function ProductsPage() {
                 )
               })}
               <td>
-                <select className="a-col-filter" value={filters.paused} onChange={e => setFilter('paused', e.target.value)}>
+                <select className="a-col-filter" value={filters.status} onChange={e => setFilter('status', e.target.value)}>
                   <option value="">Все</option>
-                  <option value="false">Активные</option>
-                  <option value="true">На паузе</option>
+                  <option value="active">Активные</option>
+                  <option value="out_of_stock">Нет в наличии</option>
+                  <option value="paused">На паузе</option>
                 </select>
               </td>
               <td>
@@ -693,7 +695,11 @@ export default function ProductsPage() {
                         <button
                           className="a-btn a-btn--sm a-btn--ghost"
                           title={p.paused ? 'Возобновить' : 'Поставить на паузу'}
-                          onClick={() => adminApi.pauseProducts([p.product_id], !p.paused).then(load)}
+                          onClick={() => adminApi.pauseProducts([p.product_id], !p.paused).then(() => {
+                            setProducts(prev => prev.map(prod =>
+                              prod.product_id === p.product_id ? { ...prod, paused: !prod.paused } : prod
+                            ))
+                          })}
                         >
                           {p.paused ? '▶' : '⏸'}
                         </button>

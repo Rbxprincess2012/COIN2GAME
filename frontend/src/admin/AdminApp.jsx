@@ -6,10 +6,12 @@ import MarkupPage from './pages/MarkupPage'
 import LogsPage from './pages/LogsPage'
 import TokensPage from './pages/TokensPage'
 import WildberriesPage from './pages/WildberriesPage'
+import CategoriesPage from './pages/CategoriesPage'
 import './admin.css'
 
 const NAV = [
   { key: 'products',     label: '📦 Товары' },
+  { key: 'categories',   label: '🗂 Категории' },
   { key: 'markup',       label: '💰 Наценка' },
   { key: 'wildberries',  label: '🛍 Wildberries' },
   { key: 'logs',         label: '📋 Журнал' },
@@ -101,6 +103,7 @@ export default function AdminApp() {
 
       <main className="a-main">
         {page === 'products'    && <ProductsPage />}
+        {page === 'categories'  && <CategoriesPage />}
         {page === 'markup'      && <MarkupPage />}
         {page === 'wildberries' && <WildberriesPage />}
         {page === 'logs'        && <LogsPage />}

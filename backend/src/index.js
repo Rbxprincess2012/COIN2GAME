@@ -113,22 +113,33 @@ app.get('/api/products', async (req, res) => {
 // GET /api/groups — группы из БД (только те, у которых есть товары в наличии)
 app.get('/api/groups', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT group_name,
-             COUNT(*) as total,
-             COUNT(*) FILTER (WHERE in_stock = true AND (paused IS NULL OR paused = false)) as available
-      FROM products
-      WHERE price IS NOT NULL
-      GROUP BY group_name
-      HAVING COUNT(*) FILTER (WHERE in_stock = true AND (paused IS NULL OR paused = false)) > 0
-      ORDER BY available DESC
-    `)
+    const [groupsRes, settingRes] = await Promise.all([
+      pool.query(`
+        SELECT group_name,
+               COUNT(*) as total,
+               COUNT(*) FILTER (WHERE in_stock = true AND (paused IS NULL OR paused = false)) as available
+        FROM products
+        WHERE price IS NOT NULL
+        GROUP BY group_name
+        HAVING COUNT(*) FILTER (WHERE in_stock = true AND (paused IS NULL OR paused = false)) > 0
+        ORDER BY available DESC
+      `),
+      pool.query(`SELECT value FROM settings WHERE key='featured_groups'`),
+    ])
 
-    const groups = result.rows.map(row => ({
+    let featuredSet = new Set()
+    try {
+      const raw = settingRes.rows[0]?.value
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (Array.isArray(parsed)) featuredSet = new Set(parsed)
+    } catch {}
+
+    const groups = groupsRes.rows.map(row => ({
       group: row.group_name,
       icon: null,
       available: parseInt(row.available),
       total: parseInt(row.total),
+      featured: featuredSet.has(row.group_name),
     }))
 
     res.json(groups)
