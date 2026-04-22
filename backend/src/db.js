@@ -5,8 +5,15 @@ dotenv.config()
 
 const { Pool } = pkg
 
+const dbHost = process.env.DB_HOST || 'localhost'
+console.log('[db] connecting to host:', dbHost)
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/topup'
+  host: dbHost,
+  port: Number(process.env.DB_PORT) || 5432,
+  database: process.env.DB_NAME || 'topup',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
 })
 
 export async function initDb() {
