@@ -166,7 +166,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setPlatformLoading(true)
     try {
-      const res = await fetch(`/api/products?group=${encodeURIComponent(service)}&in_stock=true`)
+      const res = await fetch(`${API_BASE}/api/products?group=${encodeURIComponent(service)}&in_stock=true`)
       const { products } = await res.json()
       setPlatformProducts(products || [])
     } catch { setPlatformProducts([]) }
