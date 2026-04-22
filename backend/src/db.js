@@ -1,7 +1,12 @@
 import pkg from 'pg'
 import dotenv from 'dotenv'
+import { readFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
 dotenv.config()
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const { Pool } = pkg
 
@@ -107,4 +112,20 @@ export async function initDb() {
     INSERT INTO settings (key, value) VALUES ('markup_global', '0')
     ON CONFLICT (key) DO NOTHING;
   `)
+
+  // Seed descriptions from Excel export (only fills NULL descriptions, never overwrites)
+  try {
+    const descriptionsPath = join(__dirname, '..', 'data', 'descriptions.json')
+    const descriptions = JSON.parse(readFileSync(descriptionsPath, 'utf8'))
+    for (const { product_id, description, image } of descriptions) {
+      await pool.query(
+        `UPDATE products SET
+           description = COALESCE(description, $2),
+           image = COALESCE(image, $3)
+         WHERE product_id = $1`,
+        [product_id, description, image]
+      )
+    }
+    console.log(`[db] descriptions seeded: ${descriptions.length} entries`)
+  } catch {}
 }
