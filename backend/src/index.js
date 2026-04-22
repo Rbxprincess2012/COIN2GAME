@@ -8,7 +8,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import cron from 'node-cron'
-import { pool } from './db.js'
+import { pool, initDb } from './db.js'
 import adminRoutes, { syncWbCommissions, syncWbArticles } from './admin-routes.js'
 
 dotenv.config()
@@ -462,4 +462,9 @@ app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] Получен запрос: ${req.method} ${req.url}`);
     next();
 });
+
+initDb()
+  .then(() => console.log('Tables OK'))
+  .catch(e => console.error('[db] initDb failed:', e.message))
+
 app.listen(port, () => console.log(`Backend running on http://localhost:${port}`))
