@@ -49,6 +49,11 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS paused BOOLEAN DEFAULT false;
   `)
 
+  // Migration: add price_site column if missing
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS price_site NUMERIC(12,2);
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
