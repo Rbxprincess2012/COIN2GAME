@@ -217,35 +217,35 @@ router.post('/games/sync', async (req, res) => {
 
     let updated = 0
     let inserted = 0
-    let autoPaused = 0
     for (const g of data) {
-      const blocked = isBlockedInRussia(g.name, g.activation_region)
       const r = await pool.query(
-        `INSERT INTO products (product_id, name, group_name, price, in_stock, product_type, region, description, image, raw_data, paused, updated_at)
-         VALUES ($1,$2,$3,$4,true,$5,$6,$7,$8,$9,$10,NOW())
-         ON CONFLICT (product_id) DO UPDATE SET
+        `INSERT INTO games (game_id, name, group_name, launcher, price, in_stock, region, description, image,
+           age_rating, genres, developer, release_date, languages, supported_platforms, updated_at)
+         VALUES ($1,$2,$3,$4,$5,true,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
+         ON CONFLICT (game_id) DO UPDATE SET
            name=EXCLUDED.name, price=EXCLUDED.price, group_name=EXCLUDED.group_name,
-           in_stock=true, product_type=EXCLUDED.product_type, region=EXCLUDED.region,
+           launcher=EXCLUDED.launcher, in_stock=true, region=EXCLUDED.region,
            description=EXCLUDED.description, image=EXCLUDED.image,
-           raw_data=EXCLUDED.raw_data,
-           paused = CASE WHEN products.paused = true THEN true ELSE EXCLUDED.paused END,
+           age_rating=EXCLUDED.age_rating, genres=EXCLUDED.genres,
+           developer=EXCLUDED.developer, release_date=EXCLUDED.release_date,
+           languages=EXCLUDED.languages, supported_platforms=EXCLUDED.supported_platforms,
            updated_at=NOW()
          RETURNING (xmax = 0) AS inserted`,
         [
-          String(g.product_id), g.name, g.launcher || 'Игры', g.price,
-          g.product_type || 'Game', g.activation_region,
-          g.description, g.image,
-          JSON.stringify({ genres: g.genres, developer: g.developer, age_rating: g.age_rating, release_date: g.release_date, languages: g.languages, supported_platforms: g.supported_platforms }),
-          blocked,
+          String(g.product_id), g.name, g.launcher || 'Игры', g.launcher || null, g.price,
+          g.activation_region, g.description, g.image,
+          g.age_rating || null, g.genres || null, g.developer || null,
+          g.release_date || null,
+          g.languages ? JSON.stringify(g.languages) : null,
+          g.supported_platforms || null,
         ]
       )
       if (r.rows[0]?.inserted) inserted++
       else updated++
-      if (blocked) autoPaused++
     }
 
-    await log('GAMES_SYNC', null, null, { total_from_api: data.length, updated, inserted, auto_paused: autoPaused })
-    res.json({ ok: true, updated, inserted, total: data.length, autoPaused })
+    await log('GAMES_SYNC', null, null, { total_from_api: data.length, updated, inserted })
+    res.json({ ok: true, updated, inserted, total: data.length })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

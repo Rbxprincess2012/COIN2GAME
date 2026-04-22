@@ -205,8 +205,10 @@ export default function ProductsPage() {
   const [regions, setRegions] = useState([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [syncingGames, setSyncingGames] = useState(false)
   const [editing, setEditing] = useState(null)
   const [syncResult, setSyncResult] = useState(null)
+  const [syncGamesResult, setSyncGamesResult] = useState(null)
   const [selected, setSelected] = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
   const [settings, setSettings] = useState({ targetMargin: 10, cpCommission: 0, wbCommission: 25 })
@@ -329,6 +331,14 @@ export default function ProductsPage() {
     setSyncResult(res)
     setSyncing(false)
     load()
+  }
+
+  async function handleSyncGames() {
+    setSyncingGames(true)
+    setSyncGamesResult(null)
+    const res = await adminApi.syncGames()
+    setSyncGamesResult(res)
+    setSyncingGames(false)
   }
 
   // ── Price inline editing ───────────────────────────────────────────────────
@@ -464,7 +474,10 @@ export default function ProductsPage() {
           </div>
 
           <button className="a-btn a-btn--primary" onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Синхронизация...' : '↻ Синхронизировать с API'}
+            {syncing ? 'Синхронизация...' : '↻ Товары с API'}
+          </button>
+          <button className="a-btn a-btn--ghost" onClick={handleSyncGames} disabled={syncingGames}>
+            {syncingGames ? 'Синхронизация...' : '↻ Игры с API'}
           </button>
           <button
             className={shopStopped ? 'a-btn a-btn--success' : 'a-btn a-btn--danger'}
@@ -485,8 +498,14 @@ export default function ProductsPage() {
 
       {syncResult && (
         <div className="a-alert a-alert--success">
-          Синхронизировано: обновлено {syncResult.updated}, добавлено {syncResult.inserted ?? 0} из {syncResult.total}
+          Товары: обновлено {syncResult.updated}, добавлено {syncResult.inserted ?? 0} из {syncResult.total}
           {syncResult.autoPaused > 0 && ` · авто-пауза: ${syncResult.autoPaused} (недоступны в РФ)`}
+        </div>
+      )}
+
+      {syncGamesResult && (
+        <div className="a-alert a-alert--success">
+          Игры: обновлено {syncGamesResult.updated}, добавлено {syncGamesResult.inserted ?? 0} из {syncGamesResult.total}
         </div>
       )}
 
