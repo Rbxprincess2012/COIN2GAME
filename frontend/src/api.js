@@ -1,5 +1,7 @@
+import { API_BASE } from './config.js'
+
 async function apiPost(path, body) {
-  const res = await fetch(path, {
+  const res = await fetch(API_BASE + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -9,7 +11,7 @@ async function apiPost(path, body) {
 
 async function apiGet(path, params = {}) {
   const q = new URLSearchParams(params).toString()
-  const res = await fetch(`${path}${q ? '?' + q : ''}`)
+  const res = await fetch(`${API_BASE}${path}${q ? '?' + q : ''}`)
   return res.json()
 }
 

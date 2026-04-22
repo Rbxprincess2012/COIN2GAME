@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getToken, saveToken, clearToken } from './adminApi'
+import { API_BASE } from '../config.js'
 import ProductsPage from './pages/ProductsPage'
 import MarkupPage from './pages/MarkupPage'
 import LogsPage from './pages/LogsPage'
@@ -25,7 +26,7 @@ function LoginScreen({ onLogin }) {
     saveToken(token)
     // Verify token by calling a protected endpoint
     try {
-      const res = await fetch('/api/admin/settings', {
+      const res = await fetch(API_BASE + '/api/admin/settings', {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.status === 401) {

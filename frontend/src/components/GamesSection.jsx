@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import GameCard from './GameCard'
+import { API_BASE } from '../config.js'
 
 const PER_PAGE = 24
 
@@ -13,7 +14,7 @@ function GamesSection({ onSelectGame }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/games/meta')
+    fetch(API_BASE + '/api/games/meta')
       .then(r => r.json())
       .then(d => setLaunchers(d.launchers || []))
       .catch(() => {})
@@ -25,7 +26,7 @@ function GamesSection({ onSelectGame }) {
       const params = new URLSearchParams({ limit: PER_PAGE, offset: currentOffset })
       if (launcher) params.set('launcher', launcher)
       if (search) params.set('search', search)
-      const res = await fetch(`/api/games?${params}`)
+      const res = await fetch(`${API_BASE}/api/games?${params}`)
       const data = await res.json()
       if (append) {
         setGames(prev => [...prev, ...(data.games || [])])

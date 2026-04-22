@@ -1,3 +1,5 @@
+import { API_BASE } from '../config.js'
+
 const TOKEN_KEY = 'admin_token'
 
 export function getToken() {
@@ -13,7 +15,7 @@ export function clearToken() {
 }
 
 async function req(method, path, body) {
-  const res = await fetch(`/api/admin${path}`, {
+  const res = await fetch(`${API_BASE}/api/admin${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -51,7 +53,7 @@ export const adminApi = {
   syncWbCommissions: () => req('POST', '/wb/sync-commissions'),
   syncWbArticles: () => req('POST', '/wb/sync-articles'),
   downloadWbTemplate: async () => {
-    const res = await fetch('/api/admin/wb/export-template', {
+    const res = await fetch(`${API_BASE}/api/admin/wb/export-template`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
     if (!res.ok) {

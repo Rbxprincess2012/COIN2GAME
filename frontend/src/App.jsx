@@ -12,6 +12,7 @@ import GamesSection from './components/GamesSection'
 import GameDetails from './components/GameDetails'
 import ScrollToTop from './components/ScrollToTop'
 import { api } from './api'
+import { API_BASE } from './config.js'
 
 function App() {
   // view: 'home' | 'platform' | 'product' | 'game'
@@ -55,12 +56,12 @@ function App() {
     }).catch(() => {})
 
     // Load groups
-    fetch('/api/groups').then(r => r.json()).then(data => {
+    fetch(API_BASE + '/api/groups').then(r => r.json()).then(data => {
       if (Array.isArray(data)) setGroups(data)
     }).catch(() => {})
 
     // Load featured (cheapest in-stock per group, prefer Russia)
-    fetch('/api/products?in_stock=true').then(r => r.json()).then(({ products }) => {
+    fetch(API_BASE + '/api/products?in_stock=true').then(r => r.json()).then(({ products }) => {
       if (!Array.isArray(products)) return
       const byGroup = {}
       for (const p of products) {
@@ -83,7 +84,7 @@ function App() {
     if (!q) { setSearchResults([]); return }
     setSearchLoading(true)
     const timer = setTimeout(() => {
-      fetch(`/api/products?search=${encodeURIComponent(q)}&in_stock=true`)
+      fetch(`${API_BASE}/api/products?search=${encodeURIComponent(q)}&in_stock=true`)
         .then(r => r.json())
         .then(({ products }) => setSearchResults(products || []))
         .catch(() => setSearchResults([]))
@@ -101,7 +102,7 @@ function App() {
   const cartCount = useMemo(() => cart.length, [cart])
 
   const handleSendCode = async (email) => {
-    const res = await fetch('/api/auth/send-code', {
+    const res = await fetch(API_BASE + '/api/auth/send-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
