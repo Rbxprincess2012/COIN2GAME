@@ -446,11 +446,19 @@ export async function syncWbPrices() {
   let pushed = 0
   let errors = 0
 
+  // WB limit: 10 req / 6 sec. Max batch: 3000 nmIDs.
+  // We use batches of 1000 with 700ms pause between — well within limits.
+  const delay = (ms) => new Promise(r => setTimeout(r, ms))
+  const BATCH_SIZE = 1000
+  const BATCH_DELAY_MS = 700
+
+  let firstBatch = true
   for (const [token, items] of Object.entries(byToken)) {
     if (!token || items.length === 0) continue
-    // Send in batches of 100
-    for (let i = 0; i < items.length; i += 100) {
-      const batch = items.slice(i, i + 100)
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      if (!firstBatch) await delay(BATCH_DELAY_MS)
+      firstBatch = false
+      const batch = items.slice(i, i + BATCH_SIZE)
       const res = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/upload/task', {
         method: 'POST',
         headers: { Authorization: token, 'Content-Type': 'application/json' },
