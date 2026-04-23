@@ -74,6 +74,12 @@ function DescriptionModal({ group, initial, onSave, onClose }) {
   )
 }
 
+const TABS = [
+  { key: 'all',      label: 'Все' },
+  { key: 'featured', label: 'На главной' },
+  { key: 'other',    label: 'Прочие' },
+]
+
 export default function CategoriesPage() {
   const [groups, setGroups] = useState([])
   const [featured, setFeatured] = useState(new Set())
@@ -82,6 +88,9 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [editGroup, setEditGroup] = useState(null)
+  const [tab, setTab] = useState('all')
+  const [search, setSearch] = useState('')
+  const [descFilter, setDescFilter] = useState('')   // '' | 'with' | 'without'
 
   useEffect(() => {
     Promise.all([adminApi.getGroups(), adminApi.getSettings()]).then(([rows, s]) => {
@@ -125,70 +134,116 @@ export default function CategoriesPage() {
 
   if (loading) return <div className="a-page"><p className="a-muted">Загрузка...</p></div>
 
-  const otherList = groups.filter(g => !featured.has(g))
+  const visible = groups.filter(g => {
+    if (tab === 'featured' && !featured.has(g)) return false
+    if (tab === 'other'    &&  featured.has(g)) return false
+    if (search && !g.toLowerCase().includes(search.toLowerCase())) return false
+    if (descFilter === 'with'    && !descriptions[g]) return false
+    if (descFilter === 'without' &&  descriptions[g]) return false
+    return true
+  })
 
   return (
     <div className="a-page">
       <div className="a-page-header">
-        <h2>Категории на главной</h2>
+        <h2>Категории <span className="a-count">{groups.length}</span></h2>
         <button className="a-btn a-btn--primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Сохраняем...' : saved ? '✓ Сохранено' : 'Сохранить'}
         </button>
       </div>
 
-      <p className="a-muted" style={{ marginBottom: 24, fontSize: '0.88rem' }}>
-        Отмеченные категории показываются на главной странице сразу.
-        Остальные скрыты за кнопкой «Другие категории».
-        Если ни одна не отмечена — показываются все.
-      </p>
+      {/* ── Фильтры ── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
 
+        {/* Табы */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 3, gap: 2 }}>
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                background: tab === t.key ? 'rgba(134,95,255,0.25)' : 'none',
+                border: 'none', borderRadius: 8, padding: '5px 14px',
+                cursor: 'pointer', color: tab === t.key ? '#c4acff' : '#92a2d4',
+                fontSize: '0.82rem', fontFamily: 'inherit', fontWeight: tab === t.key ? 600 : 400,
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
+              }}
+            >
+              {t.label}
+              {t.key === 'featured' && <span style={{ marginLeft: 5, opacity: 0.7 }}>{featured.size}</span>}
+              {t.key === 'other'    && <span style={{ marginLeft: 5, opacity: 0.7 }}>{groups.length - featured.size}</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* Поиск */}
+        <input
+          className="a-col-filter"
+          style={{ flex: '1 1 180px', minWidth: 140, maxWidth: 280 }}
+          placeholder="Поиск категории..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+
+        {/* Дропдаун по описанию */}
+        <select
+          className="a-col-filter"
+          style={{ minWidth: 160 }}
+          value={descFilter}
+          onChange={e => setDescFilter(e.target.value)}
+        >
+          <option value="">Все описания</option>
+          <option value="with">С описанием</option>
+          <option value="without">Без описания</option>
+        </select>
+      </div>
+
+      {/* ── Список ── */}
       <div className="a-card">
-        <h3 className="a-card-title" style={{ marginBottom: 16 }}>
-          Показывать на главной <span className="a-count">{featured.size}</span>
-        </h3>
+        {visible.length === 0 && (
+          <p className="a-muted" style={{ fontSize: '0.85rem', padding: '8px 0' }}>Ничего не найдено</p>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {groups.map(g => {
+          {visible.map(g => {
             const hasDesc = !!descriptions[g]
+            const isFeatured = featured.has(g)
             return (
               <div
                 key={g}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px', borderRadius: 10,
-                  background: featured.has(g) ? 'rgba(134,95,255,0.08)' : 'transparent',
-                  border: featured.has(g) ? '1px solid rgba(134,95,255,0.2)' : '1px solid transparent',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 12px', borderRadius: 10,
+                  background: isFeatured ? 'rgba(134,95,255,0.08)' : 'transparent',
+                  border: isFeatured ? '1px solid rgba(134,95,255,0.2)' : '1px solid transparent',
                   transition: 'all 0.15s',
                 }}
               >
-                <label style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer', minWidth: 0 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, cursor: 'pointer', minWidth: 0 }}>
                   <input
                     type="checkbox"
-                    checked={featured.has(g)}
+                    checked={isFeatured}
                     onChange={() => toggle(g)}
                     style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#865fff', flexShrink: 0 }}
                   />
-                  <span style={{ fontSize: '0.9rem', color: featured.has(g) ? '#e8ecff' : '#92a2d4', flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: '0.88rem', color: isFeatured ? '#e8ecff' : '#92a2d4', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {g}
                   </span>
                 </label>
 
-                {featured.has(g) && (
-                  <span className="a-badge a-badge--purple" style={{ flexShrink: 0 }}>Главная</span>
-                )}
+                {isFeatured
+                  ? <span className="a-badge a-badge--purple" style={{ flexShrink: 0 }}>Главная</span>
+                  : <span className="a-badge" style={{ flexShrink: 0, background: 'rgba(255,255,255,0.05)', color: 'rgba(232,236,255,0.3)' }}>Прочие</span>
+                }
 
                 <button
-                  title={hasDesc ? 'Редактировать описание категории' : 'Добавить описание категории'}
+                  title={hasDesc ? 'Редактировать описание' : 'Добавить описание'}
                   onClick={() => setEditGroup(g)}
                   style={{
-                    background: hasDesc ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)',
-                    border: hasDesc ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8,
-                    padding: '4px 10px',
-                    cursor: 'pointer',
+                    background: hasDesc ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
+                    border: hasDesc ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
                     color: hasDesc ? '#4ade80' : '#92a2d4',
-                    fontSize: '0.78rem',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
+                    fontSize: '0.75rem', whiteSpace: 'nowrap', flexShrink: 0,
                     transition: 'all 0.15s',
                   }}
                 >
@@ -199,19 +254,6 @@ export default function CategoriesPage() {
           })}
         </div>
       </div>
-
-      {featured.size > 0 && (
-        <div className="a-card" style={{ marginTop: 16 }}>
-          <h3 className="a-card-title" style={{ marginBottom: 8 }}>
-            Скрыты за «Другие категории» <span className="a-count">{otherList.length}</span>
-          </h3>
-          <p className="a-muted" style={{ fontSize: '0.82rem' }}>
-            {otherList.length === 0
-              ? 'Все категории показываются на главной'
-              : otherList.join(' · ')}
-          </p>
-        </div>
-      )}
 
       {editGroup && (
         <DescriptionModal

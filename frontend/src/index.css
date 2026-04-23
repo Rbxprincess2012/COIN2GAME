@@ -1512,6 +1512,27 @@ button {
   color: var(--text);
 }
 
+.platform-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 10px 28px;
+  cursor: pointer;
+  color: rgba(232,236,255,0.5);
+  font-size: 0.85rem;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.platform-more-btn:hover {
+  color: rgba(232,236,255,0.85);
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.04);
+}
+
 /* ── Platform page ──────────────────────────────────────────────────── */
 .platform-page {
   display: flex;

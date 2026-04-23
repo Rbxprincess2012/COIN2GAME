@@ -91,13 +91,12 @@ function PlatformGrid({ onSelectService, searchQuery = '', groups = [] }) {
 
       {otherGroups.length > 0 && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 4px' }}>
             <button
-              className="a-btn a-btn--ghost"
-              style={{ fontSize: '0.85rem', padding: '8px 20px', borderRadius: 20 }}
+              className="platform-more-btn"
               onClick={() => setShowOthers(v => !v)}
             >
-              {showOthers ? '↑ Свернуть' : `↓ Другие категории (${otherGroups.length})`}
+              <span>{showOthers ? '↑ Свернуть' : `Все категории (${otherGroups.length} ещё)`}</span>
             </button>
           </div>
 
