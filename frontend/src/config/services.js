@@ -1,99 +1,137 @@
-const SI = 'https://cdn.simpleicons.org'
+// jsDelivr serves all Simple Icons SVGs (black fill by default)
+// colorFilter() converts black → brand color via CSS filter at runtime
+const SI = 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons'
+
+function logo(slug) {
+  return `${SI}/${slug}.svg`
+}
+
+// Converts hex color → CSS filter to recolor a black SVG
+// Algorithm: brightness(0) turns it pure black, then color filters apply
+export function colorFilter(hex) {
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+
+  // Normalize
+  const rn = r / 255, gn = g / 255, bn = b / 255
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
+  let h = 0, s = 0, l = (max + min) / 2
+
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
+    else if (max === gn) h = ((bn - rn) / d + 2) / 6
+    else h = ((rn - gn) / d + 4) / 6
+  }
+
+  const hDeg = Math.round(h * 360)
+  const sPct = Math.round(s * 100)
+  const lPct = Math.round(l * 100)
+
+  // brightness(0) → pure black → sepia(1) → golden → hue-rotate to target hue
+  // then saturate and brightness to match target
+  const brt = Math.min(200, Math.round(lPct * 2.2 + 10))
+  const sat = Math.min(1000, Math.round(sPct * 10 + 200))
+
+  return `brightness(0) saturate(100%) invert(1) sepia(1) saturate(${sat}%) hue-rotate(${hDeg}deg) brightness(${brt}%)`
+}
 
 export const SERVICE_CONFIG = {
   // ── Gaming platforms ──────────────────────────────────────────────────────
   'APPLE ID': {
     label: 'Apple ID',
-    logo: `${SI}/apple/a2aaad`,
+    logo: logo('apple'),
     accent: '#a2aaad',
     bg: 'linear-gradient(135deg, #1a1a1c 0%, #28282c 100%)',
   },
   'Nintendo': {
     label: 'Nintendo',
-    logo: `${SI}/nintendo/e4000f`,
+    logo: logo('nintendo'),
     accent: '#e4000f',
     bg: 'linear-gradient(135deg, #1a0002 0%, #300005 100%)',
   },
   'Playstation': {
     label: 'PlayStation',
-    logo: `${SI}/playstation/0070d1`,
+    logo: logo('playstation'),
     accent: '#0070d1',
     bg: 'linear-gradient(135deg, #00101e 0%, #001f3d 100%)',
   },
   'Xbox': {
     label: 'Xbox',
-    logo: `${SI}/xbox/52b043`,
+    logo: logo('xbox'),
     accent: '#52b043',
     bg: 'linear-gradient(135deg, #061206 0%, #0f2210 100%)',
   },
   'Steam': {
     label: 'Steam',
-    logo: `${SI}/steam/66c0f4`,
+    logo: logo('steam'),
     accent: '#66c0f4',
     bg: 'linear-gradient(135deg, #0d1824 0%, #1b2838 100%)',
   },
   'Battle.net': {
     label: 'Battle.net',
-    logo: `${SI}/battlenet/00aeff`,
+    logo: logo('activision'),
     accent: '#00aeff',
     bg: 'linear-gradient(135deg, #001020 0%, #00203a 100%)',
   },
   'Valorant': {
     label: 'Valorant',
-    logo: `${SI}/valorant/ff4655`,
+    logo: logo('valorant'),
     accent: '#ff4655',
     bg: 'linear-gradient(135deg, #0e0008 0%, #1c0012 100%)',
   },
   'PUBG Mobile': {
     label: 'PUBG Mobile',
-    logo: `${SI}/pubg/f2a900`,
+    logo: logo('pubg'),
     accent: '#f2a900',
     bg: 'linear-gradient(135deg, #181000 0%, #281c00 100%)',
   },
   'PUBG Battleground': {
     label: 'PUBG PC',
-    logo: `${SI}/pubg/c8a95a`,
+    logo: logo('pubg'),
     accent: '#c8a95a',
     bg: 'linear-gradient(135deg, #181208 0%, #261e0e 100%)',
   },
   'Razer Gold': {
     label: 'Razer Gold',
-    logo: `${SI}/razer/44d62c`,
+    logo: logo('razer'),
     accent: '#44d62c',
     bg: 'linear-gradient(135deg, #001200 0%, #002600 100%)',
   },
   'Roblox': {
     label: 'Roblox',
-    logo: `${SI}/roblox/e42b26`,
+    logo: logo('roblox'),
     accent: '#e42b26',
     bg: 'linear-gradient(135deg, #1a0000 0%, #2e0303 100%)',
   },
   'Minecraft': {
     label: 'Minecraft',
-    logo: `${SI}/minecraft/62b47a`,
+    logo: logo('minecraft'),
     accent: '#62b47a',
     bg: 'linear-gradient(135deg, #061410 0%, #0e2418 100%)',
   },
   'Fortnite': {
     label: 'Fortnite',
-    logo: `${SI}/fortnite/00d0ff`,
+    logo: logo('fortnite'),
     accent: '#00d0ff',
     bg: 'linear-gradient(135deg, #001a24 0%, #002d3d 100%)',
   },
   'League Of Legends': {
     label: 'League of Legends',
-    logo: `${SI}/leagueoflegends/c69b3a`,
+    logo: logo('leagueoflegends'),
     accent: '#c69b3a',
     bg: 'linear-gradient(135deg, #0a0800 0%, #1c1400 100%)',
   },
   'Apex Legends Mobile': {
     label: 'Apex Legends',
-    logo: `${SI}/apexlegends/da292a`,
+    logo: logo('ea'),
     accent: '#da292a',
     bg: 'linear-gradient(135deg, #1a0000 0%, #2e0000 100%)',
   },
 
-  // ── Games (no SI logo) ────────────────────────────────────────────────────
+  // ── Games (no SI logo — themed gradient) ─────────────────────────────────
   'Genshin Impact': {
     label: 'Genshin Impact',
     accent: '#4fc3f7',
@@ -229,107 +267,268 @@ export const SERVICE_CONFIG = {
     accent: '#f48fb1',
     bg: 'linear-gradient(135deg, #1a0010 0%, #28001e 100%)',
   },
+  'Harry Potter Magic Awakened': {
+    label: 'Harry Potter',
+    accent: '#c8a95a',
+    bg: 'linear-gradient(135deg, #0c0800 0%, #1e1400 100%)',
+  },
+  'State of Survival Zombie War': {
+    label: 'State of Survival',
+    accent: '#ef5350',
+    bg: 'linear-gradient(135deg, #1a0400 0%, #2c0800 100%)',
+  },
+  'Watcher Of Realms': {
+    label: 'Watcher Of Realms',
+    accent: '#7986cb',
+    bg: 'linear-gradient(135deg, #060818 0%, #0e1030 100%)',
+  },
+  'MARVEL Mystic Mayhem': {
+    label: 'Marvel Mystic Mayhem',
+    accent: '#e62429',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2e0606 100%)',
+  },
+  'Clair Obscur Expedition 33': {
+    label: 'Clair Obscur',
+    accent: '#ce93d8',
+    bg: 'linear-gradient(135deg, #100018 0%, #1e0028 100%)',
+  },
+  'LifeAfter': {
+    label: 'LifeAfter',
+    accent: '#66bb6a',
+    bg: 'linear-gradient(135deg, #041008 0%, #0a2010 100%)',
+  },
+  'New State Mobile': {
+    label: 'New State Mobile',
+    accent: '#90a4ae',
+    bg: 'linear-gradient(135deg, #060c10 0%, #0e1820 100%)',
+  },
+  'Destiny Rising': {
+    label: 'Destiny Rising',
+    accent: '#b0b8c8',
+    bg: 'linear-gradient(135deg, #060c18 0%, #0e1828 100%)',
+  },
+  'Sid Meiers Civilization VI': {
+    label: 'Civilization VI',
+    accent: '#c0392b',
+    bg: 'linear-gradient(135deg, #180600 0%, #2c0e00 100%)',
+  },
+  'LEGO Star Wars': {
+    label: 'LEGO Star Wars',
+    accent: '#f9d71c',
+    bg: 'linear-gradient(135deg, #0e0800 0%, #1e1400 100%)',
+  },
+  'Onmyoji Arena': {
+    label: 'Onmyoji Arena',
+    accent: '#ef9a9a',
+    bg: 'linear-gradient(135deg, #1a0808 0%, #2c1010 100%)',
+  },
+  'Top Eleven Be Football Manager': {
+    label: 'Top Eleven',
+    accent: '#43a047',
+    bg: 'linear-gradient(135deg, #041008 0%, #081e10 100%)',
+  },
+  'Point Blank': {
+    label: 'Point Blank',
+    accent: '#ef5350',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0606 100%)',
+  },
+  'Metro Exodus': {
+    label: 'Metro Exodus',
+    accent: '#a1887f',
+    bg: 'linear-gradient(135deg, #100806 0%, #201410 100%)',
+  },
+  'God of War Ragnarok': {
+    label: 'God of War',
+    accent: '#b71c1c',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'God of War': {
+    label: 'God of War',
+    accent: '#b71c1c',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'DOOM The Dark Ages': {
+    label: 'DOOM',
+    accent: '#e53935',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'Street Fighter 6': {
+    label: 'Street Fighter 6',
+    accent: '#ff6f00',
+    bg: 'linear-gradient(135deg, #180a00 0%, #2c1400 100%)',
+  },
+  'Mortal Kombat 11': {
+    label: 'Mortal Kombat',
+    accent: '#c62828',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'Blood Strike': {
+    label: 'Blood Strike',
+    accent: '#ef5350',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'Doomsday Last Survivors': {
+    label: 'Doomsday',
+    accent: '#78909c',
+    bg: 'linear-gradient(135deg, #060c10 0%, #101c20 100%)',
+  },
+  'ARC Raiders': {
+    label: 'ARC Raiders',
+    accent: '#29b6f6',
+    bg: 'linear-gradient(135deg, #001824 0%, #002838 100%)',
+  },
+  'Once Human': {
+    label: 'Once Human',
+    accent: '#80cbc4',
+    bg: 'linear-gradient(135deg, #041410 0%, #0a2420 100%)',
+  },
 
   // ── Streaming & apps ──────────────────────────────────────────────────────
   'Netflix': {
     label: 'Netflix',
-    logo: `${SI}/netflix/e50914`,
+    logo: logo('netflix'),
     accent: '#e50914',
     bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
   },
   'Spotify': {
     label: 'Spotify',
-    logo: `${SI}/spotify/1db954`,
+    logo: logo('spotify'),
     accent: '#1db954',
     bg: 'linear-gradient(135deg, #001a08 0%, #002e10 100%)',
   },
   'Twitch': {
     label: 'Twitch',
-    logo: `${SI}/twitch/9146ff`,
+    logo: logo('twitch'),
     accent: '#9146ff',
     bg: 'linear-gradient(135deg, #0c0020 0%, #1a0040 100%)',
   },
   'Discord': {
     label: 'Discord',
-    logo: `${SI}/discord/5865f2`,
+    logo: logo('discord'),
     accent: '#5865f2',
     bg: 'linear-gradient(135deg, #060824 0%, #0e1040 100%)',
   },
   'Telegram Stars': {
     label: 'Telegram Stars',
-    logo: `${SI}/telegram/2aabee`,
+    logo: logo('telegram'),
     accent: '#2aabee',
     bg: 'linear-gradient(135deg, #001824 0%, #00283c 100%)',
   },
   'Telegram Premium': {
     label: 'Telegram Premium',
-    logo: `${SI}/telegram/2aabee`,
+    logo: logo('telegram'),
     accent: '#2aabee',
     bg: 'linear-gradient(135deg, #001824 0%, #00283c 100%)',
   },
   'Adobe': {
     label: 'Adobe',
-    logo: `${SI}/adobe/ff0000`,
+    logo: logo('adobe'),
     accent: '#ff0000',
     bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
   },
   'Google Play': {
     label: 'Google Play',
-    logo: `${SI}/googleplay/01875f`,
+    logo: logo('googleplay'),
     accent: '#01875f',
     bg: 'linear-gradient(135deg, #001810 0%, #002c1e 100%)',
   },
   'Microsoft': {
     label: 'Microsoft',
-    logo: `${SI}/microsoft/0078d4`,
-    accent: '#0078d4',
+    logo: logo('microsoft'),
+    accent: '#00adef',
     bg: 'linear-gradient(135deg, #001020 0%, #001e38 100%)',
   },
 
   // ── AI tools ──────────────────────────────────────────────────────────────
   'OpenAI': {
     label: 'OpenAI',
-    logo: `${SI}/openai/74aa9c`,
+    logo: logo('openai'),
     accent: '#74aa9c',
     bg: 'linear-gradient(135deg, #041412 0%, #0a241e 100%)',
   },
   'ChatGPT': {
     label: 'ChatGPT',
-    logo: `${SI}/openai/74aa9c`,
+    logo: logo('openai'),
     accent: '#74aa9c',
     bg: 'linear-gradient(135deg, #041412 0%, #0a241e 100%)',
   },
+  'Claude': {
+    label: 'Claude',
+    logo: logo('claude'),
+    accent: '#d97757',
+    bg: 'linear-gradient(135deg, #1a0c08 0%, #2c1810 100%)',
+  },
+  'Claude Gift': {
+    label: 'Claude Gift',
+    logo: logo('claude'),
+    accent: '#d97757',
+    bg: 'linear-gradient(135deg, #1a0c08 0%, #2c1810 100%)',
+  },
   'Midjourney': {
     label: 'Midjourney',
-    logo: `${SI}/midjourney/ffffff`,
     accent: '#e8ecff',
     bg: 'linear-gradient(135deg, #080810 0%, #101020 100%)',
   },
   'Elevenlabs': {
     label: 'ElevenLabs',
-    logo: `${SI}/elevenlabs/f5a623`,
+    logo: logo('elevenlabs'),
     accent: '#f5a623',
     bg: 'linear-gradient(135deg, #180e00 0%, #261800 100%)',
+  },
+  'Suno AI': {
+    label: 'Suno AI',
+    logo: logo('suno'),
+    accent: '#ff6b6b',
+    bg: 'linear-gradient(135deg, #1a0808 0%, #2c1010 100%)',
+  },
+  'Freepik': {
+    label: 'Freepik',
+    logo: logo('freepik'),
+    accent: '#1fb5ff',
+    bg: 'linear-gradient(135deg, #001824 0%, #002838 100%)',
+  },
+  'Loom': {
+    label: 'Loom',
+    logo: logo('loom'),
+    accent: '#625df5',
+    bg: 'linear-gradient(135deg, #060824 0%, #0c1040 100%)',
+  },
+  'Ideogram': {
+    label: 'Ideogram',
+    accent: '#e8ecff',
+    bg: 'linear-gradient(135deg, #080810 0%, #101020 100%)',
   },
 
   // ── Other services ────────────────────────────────────────────────────────
   'JetBrains': {
     label: 'JetBrains',
-    logo: `${SI}/jetbrains/fe315d`,
+    logo: logo('jetbrains'),
     accent: '#fe315d',
     bg: 'linear-gradient(135deg, #1a000e 0%, #2c001c 100%)',
   },
   'Zoom': {
     label: 'Zoom',
-    logo: `${SI}/zoom/2d8cff`,
+    logo: logo('zoom'),
     accent: '#2d8cff',
     bg: 'linear-gradient(135deg, #001428 0%, #00223e 100%)',
   },
   'Airbnb': {
     label: 'Airbnb',
-    logo: `${SI}/airbnb/ff5a5f`,
+    logo: logo('airbnb'),
     accent: '#ff5a5f',
     bg: 'linear-gradient(135deg, #1a0204 0%, #2c0408 100%)',
+  },
+  'Amazon.com': {
+    label: 'Amazon',
+    logo: logo('amazon'),
+    accent: '#ff9900',
+    bg: 'linear-gradient(135deg, #181000 0%, #281c00 100%)',
+  },
+  'eBay': {
+    label: 'eBay',
+    logo: logo('ebay'),
+    accent: '#e53238',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0606 100%)',
   },
 }
 

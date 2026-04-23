@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SERVICE_CONFIG } from '../config/services'
+import { SERVICE_CONFIG, colorFilter } from '../config/services'
 
 const FALLBACK_ACCENTS = ['#66c0f4','#ff4655','#52b043','#f2a900','#44d62c','#a2aaad','#c8a95a','#0070d1','#ff4444']
 
@@ -28,6 +28,7 @@ function GroupTile({ g, idx, onSelectService }) {
           src={logoSrc}
           alt=""
           className="platform-tile-logo"
+          style={{ filter: colorFilter(cfg.accent.replace('#', '')) }}
           onError={e => { e.target.style.display = 'none' }}
         />
       )}

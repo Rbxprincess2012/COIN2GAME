@@ -34,7 +34,7 @@ function DescriptionBlock({ text }) {
   )
 }
 
-import { SERVICE_CONFIG } from '../config/services.js'
+import { SERVICE_CONFIG, colorFilter } from '../config/services.js'
 
 function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, isLoggedIn }) {
   if (!product) return null
@@ -64,6 +64,7 @@ function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, i
                   src={logo}
                   alt=""
                   className="details-service-logo"
+                  style={{ filter: colorFilter(cfg.accent.replace('#', '')) }}
                   onError={e => { e.target.style.display = 'none' }}
                 />
               )}
