@@ -69,7 +69,7 @@ function LoginScreen({ onLogin }) {
   )
 }
 
-const BALANCE_KEYS = ['rub', 'usdt']
+const BALANCE_KEYS = { rub_balance: 'RUB', usdt_balance: 'USDT' }
 
 function FpBalance() {
   const [data, setData]       = useState(null)
@@ -96,7 +96,7 @@ function FpBalance() {
   const fmt = (v) => Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   const entries = data
-    ? Object.entries(data).filter(([k]) => BALANCE_KEYS.includes(k.toLowerCase()))
+    ? Object.entries(BALANCE_KEYS).map(([k, label]) => [label, data[k]]).filter(([, v]) => v != null)
     : []
 
   return (
