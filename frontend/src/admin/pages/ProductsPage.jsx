@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { adminApi } from '../adminApi'
+import { fixLayout } from '../../utils/layoutFix.js'
 
 const ENTREPRENEURS = [
   { key: 'marina',  label: 'Марина',  taxSystem: 'АУСН', taxRate: 8 },
@@ -247,7 +248,11 @@ export default function ProductsPage() {
     try {
       const params = { page, limit: LIMIT }
       if (filters.id)           params.id           = filters.id
-      if (filters.search)       params.search       = filters.search
+      if (filters.search) {
+        const { fixed, wasFixed } = fixLayout(filters.search)
+        params.search = filters.search
+        if (wasFixed) params.search_alt = fixed
+      }
       if (filters.group)        params.group        = filters.group
       if (filters.region)       params.region       = filters.region
       if (filters.product_type) params.product_type = filters.product_type

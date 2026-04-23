@@ -72,6 +72,11 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_article TEXT;
   `)
 
+  // Migration: add sales_count for popularity sorting
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0;
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,

@@ -27,7 +27,7 @@ async function log(type, product_id = null, product_name = null, details = {}) {
 
 router.get('/products', async (req, res) => {
   try {
-    const { id, search, group, region, product_type, in_stock, paused,
+    const { id, search, search_alt, group, region, product_type, in_stock, paused,
             manual_price, margin_below, factor_site, factor_wb,
             page = 1, limit = 50 } = req.query
     const offset = (Number(page) - 1) * Number(limit)
@@ -39,8 +39,13 @@ router.get('/products', async (req, res) => {
       where.push(`product_id ILIKE $${params.length}`)
     }
     if (search) {
-      params.push(`%${search}%`)
-      where.push(`name ILIKE $${params.length}`)
+      if (search_alt && search_alt !== search) {
+        params.push(`%${search}%`, `%${search_alt}%`)
+        where.push(`(name ILIKE $${params.length - 1} OR name ILIKE $${params.length})`)
+      } else {
+        params.push(`%${search}%`)
+        where.push(`name ILIKE $${params.length}`)
+      }
     }
     if (group) {
       params.push(group)

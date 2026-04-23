@@ -72,19 +72,25 @@ app.get('/api/products', async (req, res) => {
       where.push(`in_stock = true`)
     }
     if (search) {
-      const words = search.trim().split(/\s+/).filter(Boolean)
-      for (const word of words) {
-        params.push(`%${word}%`)
-        where.push(`name ILIKE $${params.length}`)
-      }
+      // Support multiple search terms (layout variants) via search_alt param
+      const terms = [search, req.query.search_alt].filter(Boolean)
+      const termClauses = terms.map(term => {
+        const words = term.trim().split(/\s+/).filter(Boolean)
+        const wordClauses = words.map(word => {
+          params.push(`%${word}%`)
+          return `name ILIKE $${params.length}`
+        })
+        return `(${wordClauses.join(' AND ')})`
+      })
+      where.push(`(${termClauses.join(' OR ')})`)
     }
 
     where.push(`(paused IS NULL OR paused = false)`)
     const clause = `WHERE ${where.join(' AND ')}`
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image
+      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image, sales_count
        FROM products ${clause}
-       ORDER BY group_name, price`,
+       ORDER BY sales_count DESC, group_name, price`,
       params
     )
 
@@ -425,6 +431,11 @@ app.post('/api/cp/complete', async (req, res) => {
       ...(product_type === 'TOPUP' && topup_data ? topup_data : {}),
     }
     const data = await fpPost(FP_PROXY, { path, request })
+    // Increment sales counter (fire-and-forget)
+    pool.query(
+      `UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`,
+      [String(product_id)]
+    ).catch(() => {})
     res.json(data)
   } catch (e) {
     console.error(e)

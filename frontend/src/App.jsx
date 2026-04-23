@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from './components/Header'
 import ProductCard from './components/ProductCard'
 import ProductDetails from './components/ProductDetails'
@@ -13,6 +13,7 @@ import GameDetails from './components/GameDetails'
 import ScrollToTop from './components/ScrollToTop'
 import { api } from './api'
 import { API_BASE } from './config.js'
+import { fixLayout } from './utils/layoutFix.js'
 
 function App() {
   // view: 'home' | 'platform' | 'product' | 'game'
@@ -30,8 +31,11 @@ function App() {
   const [showCheckout, setShowCheckout] = useState(false)
   const [checkoutItems, setCheckoutItems] = useState([])
   const [homeSearch, setHomeSearch] = useState('')
-  const [searchResults, setSearchResults] = useState([])
+  const [suggestions, setSuggestions] = useState([])
   const [searchLoading, setSearchLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [fixedQuery, setFixedQuery] = useState(null)
+  const searchRef = useRef(null)
   const [productTypeMap, setProductTypeMap] = useState({})
   const [groups, setGroups] = useState([])
   const [featured, setFeatured] = useState([])
@@ -80,16 +84,26 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const q = homeSearch.trim()
-    if (!q) { setSearchResults([]); return }
+    const raw = homeSearch.trim()
+    if (!raw) { setSuggestions([]); setFixedQuery(null); return }
+
+    const { fixed, wasFixed } = fixLayout(raw)
+    setFixedQuery(wasFixed ? fixed : null)
     setSearchLoading(true)
-    const timer = setTimeout(() => {
-      fetch(`${API_BASE}/api/products?search=${encodeURIComponent(q)}&in_stock=true`)
-        .then(r => r.json())
-        .then(({ products }) => setSearchResults(products || []))
-        .catch(() => setSearchResults([]))
-        .finally(() => setSearchLoading(false))
-    }, 300)
+
+    const timer = setTimeout(async () => {
+      try {
+        const primary = encodeURIComponent(raw)
+        const alt     = wasFixed ? `&search_alt=${encodeURIComponent(fixed)}` : ''
+        const res = await fetch(`${API_BASE}/api/products?search=${primary}${alt}&in_stock=true`)
+        const { products = [] } = await res.json()
+        setSuggestions(products.slice(0, 10))
+        setShowSuggestions(true)
+      } catch {
+        setSuggestions([])
+      }
+      setSearchLoading(false)
+    }, 250)
     return () => clearTimeout(timer)
   }, [homeSearch])
 
@@ -201,75 +215,76 @@ function App() {
         {view === 'home' && (
           <>
             <div className="home-search-bar">
-              <div className="search-wrap">
+              <div className="search-wrap" ref={searchRef} style={{ position: 'relative' }}>
                 <input
                   type="text"
                   className="search-input search-input--home"
                   placeholder="Найти игру, сервис или платформу..."
                   value={homeSearch}
-                  onChange={(e) => setHomeSearch(e.target.value)}
+                  onChange={e => { setHomeSearch(e.target.value); setShowSuggestions(true) }}
+                  onFocus={() => suggestions.length && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  autoComplete="off"
                 />
                 {homeSearch && (
-                  <button className="search-clear" onClick={() => setHomeSearch('')}>×</button>
+                  <button className="search-clear" onClick={() => { setHomeSearch(''); setSuggestions([]); setFixedQuery(null) }}>×</button>
+                )}
+
+                {/* Suggestion dropdown */}
+                {showSuggestions && homeSearch.trim() && (
+                  <div className="search-suggestions">
+                    {fixedQuery && (
+                      <div className="search-suggestions-hint">
+                        Раскладка исправлена: <b>{fixedQuery}</b>
+                      </div>
+                    )}
+                    {searchLoading && <div className="search-suggestions-loading">Поиск...</div>}
+                    {!searchLoading && suggestions.length === 0 && (
+                      <div className="search-suggestions-empty">Ничего не найдено</div>
+                    )}
+                    {suggestions.map(p => (
+                      <button
+                        key={p.id}
+                        className="search-suggestion-item"
+                        onMouseDown={() => { goToProduct(p); setHomeSearch(''); setShowSuggestions(false) }}
+                      >
+                        <span className="search-suggestion-name">{p.title}</span>
+                        <span className="search-suggestion-meta">{p.platform} · {p.region}</span>
+                        <span className="search-suggestion-price">₽{p.price.toLocaleString('ru-RU')}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
 
-            {homeSearch.trim() ? (
+            <div id="platforms">
+              <PlatformGrid onSelectService={goToPlatform} searchQuery={homeSearch} groups={groups} />
+            </div>
+
+            {featured.length > 0 && (
               <section className="featured-section">
                 <div className="section-header">
                   <div>
-                    <p className="eyebrow">Результаты поиска</p>
-                    <h2>
-                      {searchLoading ? 'Поиск...' : `Найдено: ${searchResults.length}`}
-                    </h2>
+                    <p className="eyebrow">Хиты продаж</p>
+                    <h2>Самые популярные</h2>
                   </div>
                 </div>
-                {!searchLoading && searchResults.length === 0 && (
-                  <p style={{ color: '#92a2d4' }}>Ничего не найдено</p>
-                )}
                 <div className="products-grid">
-                  {searchResults.map((product) => (
+                  {featured.map((product) => (
                     <ProductCard
                       key={product.id}
                       product={product}
                       onSelect={() => goToProduct(product)}
                       onAdd={() => handleAddToCart(product)}
+                      showBadge
                     />
                   ))}
                 </div>
               </section>
-            ) : (
-              <>
-                <div id="platforms">
-                  <PlatformGrid onSelectService={goToPlatform} searchQuery={homeSearch} groups={groups} />
-                </div>
-
-                {featured.length > 0 && (
-                  <section className="featured-section">
-                    <div className="section-header">
-                      <div>
-                        <p className="eyebrow">Хиты продаж</p>
-                        <h2>Самые популярные</h2>
-                      </div>
-                    </div>
-                    <div className="products-grid">
-                      {featured.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          onSelect={() => goToProduct(product)}
-                          onAdd={() => handleAddToCart(product)}
-                          showBadge
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                <GamesSection onSelectGame={goToGame} />
-              </>
             )}
+
+            <GamesSection onSelectGame={goToGame} />
           </>
         )}
 
