@@ -610,8 +610,22 @@ button {
   flex: 1;
 }
 
-.details-price-badge {
+.details-price-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
+}
+
+.details-service-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+}
+
+.details-price-badge {
   padding: 8px 20px;
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(134,95,255,0.25), rgba(244,143,27,0.2));

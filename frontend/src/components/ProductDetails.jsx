@@ -34,8 +34,13 @@ function DescriptionBlock({ text }) {
   )
 }
 
+import { SERVICE_CONFIG } from '../config/services.js'
+
 function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, isLoggedIn }) {
   if (!product) return null
+
+  const cfg = SERVICE_CONFIG[product.platform] || SERVICE_CONFIG[product.service] || null
+  const logo = cfg?.logo || null
 
   return (
     <section className="details-page">
@@ -53,8 +58,18 @@ function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, i
           <span className="hero-tag">{product.category}</span>
           <div className="details-title-row">
             <h2>{product.title}</h2>
-            <div className="details-price-badge">
-              ₽{product.price.toLocaleString('ru-RU')}
+            <div className="details-price-col">
+              {logo && (
+                <img
+                  src={logo}
+                  alt=""
+                  className="details-service-logo"
+                  onError={e => { e.target.style.display = 'none' }}
+                />
+              )}
+              <div className="details-price-badge">
+                ₽{product.price.toLocaleString('ru-RU')}
+              </div>
             </div>
           </div>
           <p className="card-meta">Платформа: {product.platform} · Регион: {product.region}</p>
