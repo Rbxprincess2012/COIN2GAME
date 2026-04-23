@@ -44,6 +44,14 @@ export const adminApi = {
   deleteProduct: (id) => req('DELETE', `/products/${id}`),
   syncProducts: () => req('POST', '/products/sync'),
   syncGames: () => req('POST', '/games/sync'),
+  syncAll: async () => {
+    const [products, games] = await Promise.all([
+      req('POST', '/products/sync'),
+      req('POST', '/games/sync'),
+    ])
+    const wb = await req('POST', '/wb/sync-prices')
+    return { products, games, wb }
+  },
   pauseProducts: (ids, paused) => req('POST', '/products/pause', { ids, paused }),
 
   // Settings

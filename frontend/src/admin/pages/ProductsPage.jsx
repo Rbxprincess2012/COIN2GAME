@@ -205,10 +205,8 @@ export default function ProductsPage() {
   const [regions, setRegions] = useState([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  const [syncingGames, setSyncingGames] = useState(false)
   const [editing, setEditing] = useState(null)
   const [syncResult, setSyncResult] = useState(null)
-  const [syncGamesResult, setSyncGamesResult] = useState(null)
   const [selected, setSelected] = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
   const [settings, setSettings] = useState({ targetMargin: 10, cpCommission: 0, wbCommission: 25 })
@@ -328,10 +326,12 @@ export default function ProductsPage() {
   async function handleSync() {
     setSyncing(true)
     setSyncResult(null)
-    setSyncGamesResult(null)
-    const [products, games] = await Promise.all([adminApi.syncProducts(), adminApi.syncGames()])
-    setSyncResult(products)
-    setSyncGamesResult(games)
+    try {
+      const r = await adminApi.syncAll()
+      setSyncResult(r)
+    } catch (e) {
+      setSyncResult({ error: e.message })
+    }
     setSyncing(false)
     load()
     window.dispatchEvent(new Event('fp-sync'))
@@ -490,15 +490,13 @@ export default function ProductsPage() {
       )}
 
       {syncResult && (
-        <div className="a-alert a-alert--success">
-          Товары: обновлено {syncResult.updated}, добавлено {syncResult.inserted ?? 0} из {syncResult.total}
-          {syncResult.autoPaused > 0 && ` · авто-пауза: ${syncResult.autoPaused} (недоступны в РФ)`}
-        </div>
-      )}
-
-      {syncGamesResult && (
-        <div className="a-alert a-alert--success">
-          Игры: обновлено {syncGamesResult.updated}, добавлено {syncGamesResult.inserted ?? 0} из {syncGamesResult.total}
+        <div className={`a-alert a-alert--${syncResult.error ? 'error' : 'success'}`}>
+          {syncResult.error ? `Ошибка: ${syncResult.error}` : (<>
+            Товары: {syncResult.products?.updated ?? 0} обновлено, {syncResult.products?.inserted ?? 0} добавлено из {syncResult.products?.total ?? 0}
+            {syncResult.products?.autoPaused > 0 && ` · пауза: ${syncResult.products.autoPaused}`}
+            {' · '}Игры: {syncResult.games?.updated ?? 0} / {syncResult.games?.total ?? 0}
+            {syncResult.wb && ` · WB: загружено ${syncResult.wb.pushed ?? 0} цен`}
+          </>)}
         </div>
       )}
 
