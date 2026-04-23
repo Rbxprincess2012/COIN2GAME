@@ -657,13 +657,18 @@ export default function ProductsPage() {
                         <input
                           type="number"
                           className={`a-input a-input--sm a-price-input${autoSite ? ' a-price-input--auto' : ''}`}
-                          style={{ textAlign: 'right', display: 'block' }}
+                          style={{
+                            textAlign: 'right',
+                            borderColor: calcMargin(displaySite, cost, siteDeductions) !== null
+                              ? (calcMargin(displaySite, cost, siteDeductions) >= settings.targetMargin ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.5)')
+                              : undefined,
+                          }}
                           placeholder={Math.round(displaySite).toLocaleString('ru-RU')}
                           value={getPriceEdit(p, 'price_site')}
                           onChange={e => setPriceEdit(p.product_id, 'price_site', e.target.value)}
                           onBlur={() => savePriceField(p, 'price_site')}
+                          title={calcMargin(displaySite, cost, siteDeductions) !== null ? `Маржа: ${calcMargin(displaySite, cost, siteDeductions).toFixed(1)}%` : ''}
                         />
-                        <MarginBadge sellPrice={displaySite} cost={cost} deductionsPct={siteDeductions} />
                       </td>
 
                       {/* Цена ВБ */}
@@ -671,13 +676,18 @@ export default function ProductsPage() {
                         <input
                           type="number"
                           className={`a-input a-input--sm a-price-input${autoWb ? ' a-price-input--auto' : ''}`}
-                          style={{ textAlign: 'right', display: 'block' }}
+                          style={{
+                            textAlign: 'right',
+                            borderColor: calcMargin(displayWb, cost, wbDeductions) !== null
+                              ? (calcMargin(displayWb, cost, wbDeductions) >= settings.targetMargin ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.5)')
+                              : undefined,
+                          }}
                           placeholder={Math.round(displayWb).toLocaleString('ru-RU')}
                           value={getPriceEdit(p, 'price_wb')}
                           onChange={e => setPriceEdit(p.product_id, 'price_wb', e.target.value)}
                           onBlur={() => savePriceField(p, 'price_wb')}
+                          title={calcMargin(displayWb, cost, wbDeductions) !== null ? `Маржа: ${calcMargin(displayWb, cost, wbDeductions).toFixed(1)}%` : ''}
                         />
-                        <MarginBadge sellPrice={displayWb} cost={cost} deductionsPct={wbDeductions} />
                       </td>
 
                       <td style={{ textAlign: 'center' }}>
