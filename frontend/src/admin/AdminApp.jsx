@@ -69,22 +69,20 @@ function LoginScreen({ onLogin }) {
   )
 }
 
+const BALANCE_KEYS = ['rub', 'usdt']
+
 function FpBalance() {
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState(null)
   const [updatedAt, setUpdatedAt] = useState(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const res = await adminApi.getFpBalance()
       setData(res)
       setUpdatedAt(new Date())
-    } catch (e) {
-      setError('Ошибка')
-    }
+    } catch {}
     setLoading(false)
   }, [])
 
@@ -92,68 +90,45 @@ function FpBalance() {
     refresh()
     const hourly = setInterval(refresh, 60 * 60 * 1000)
     window.addEventListener('fp-sync', refresh)
-    return () => {
-      clearInterval(hourly)
-      window.removeEventListener('fp-sync', refresh)
-    }
+    return () => { clearInterval(hourly); window.removeEventListener('fp-sync', refresh) }
   }, [refresh])
 
-  const fmt = (v) => v != null
-    ? Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '—'
+  const fmt = (v) => Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-  const timeStr = updatedAt
-    ? updatedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    : null
+  const entries = data
+    ? Object.entries(data).filter(([k]) => BALANCE_KEYS.includes(k.toLowerCase()))
+    : []
 
   return (
-    <div style={{
-      marginTop: 'auto',
-      padding: '12px 8px 0',
-      borderTop: '1px solid rgba(255,255,255,0.07)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontSize: '0.7rem', color: '#92a2d4', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Баланс FP
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <span style={{ fontSize: '0.7rem', color: '#92a2d4', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+        Баланс FP
+      </span>
+      {loading && <span style={{ fontSize: '0.78rem', color: '#92a2d4' }}>...</span>}
+      {!loading && entries.length === 0 && data && (
+        <span style={{ fontSize: '0.78rem', color: '#92a2d4' }}>—</span>
+      )}
+      {entries.map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span style={{ fontSize: '0.7rem', color: '#92a2d4', textTransform: 'uppercase' }}>{k}</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#4ade80' }}>{fmt(v)}</span>
+        </div>
+      ))}
+      {updatedAt && (
+        <span style={{ fontSize: '0.68rem', color: 'rgba(146,162,212,0.35)', whiteSpace: 'nowrap' }}>
+          {updatedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </span>
-        <button
-          onClick={refresh}
-          disabled={loading}
-          title="Обновить баланс"
-          style={{
-            background: 'none', border: 'none', cursor: loading ? 'default' : 'pointer',
-            color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px',
-            opacity: loading ? 0.4 : 1, transition: 'opacity 0.15s',
-          }}
-        >↻</button>
-      </div>
-
-      {error && (
-        <div style={{ fontSize: '0.75rem', color: '#f87171' }}>{error}</div>
       )}
-
-      {!error && data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {Object.entries(data).map(([k, v]) => (
-            typeof v === 'number' || (typeof v === 'string' && !isNaN(Number(v))) ? (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
-                <span style={{ fontSize: '0.72rem', color: '#92a2d4', flexShrink: 0 }}>{k}</span>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4ade80' }}>{fmt(v)}</span>
-              </div>
-            ) : null
-          ))}
-        </div>
-      )}
-
-      {!error && !data && !loading && (
-        <div style={{ fontSize: '0.75rem', color: '#92a2d4' }}>—</div>
-      )}
-
-      {timeStr && (
-        <div style={{ fontSize: '0.68rem', color: 'rgba(146,162,212,0.45)', marginTop: 4 }}>
-          обновлено в {timeStr}
-        </div>
-      )}
+      <button
+        onClick={refresh}
+        disabled={loading}
+        title="Обновить баланс"
+        style={{
+          background: 'none', border: 'none', cursor: loading ? 'default' : 'pointer',
+          color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px',
+          opacity: loading ? 0.4 : 1, transition: 'opacity 0.15s',
+        }}
+      >↻</button>
     </div>
   )
 }
@@ -166,7 +141,7 @@ export default function AdminApp() {
 
   return (
     <div className="a-shell">
-      <aside className="a-sidebar" style={{ position: 'relative' }}>
+      <aside className="a-sidebar">
         <div className="a-brand">
           COIN<span>2</span>GAME
           <span className="a-brand-label"> Admin</span>
@@ -182,24 +157,28 @@ export default function AdminApp() {
             </button>
           ))}
         </nav>
-        <FpBalance />
         <button
           className="a-nav-item a-nav-item--logout"
-          style={{ marginTop: 8 }}
+          style={{ marginTop: 'auto' }}
           onClick={() => { clearToken(); setAuthed(false) }}
         >
           Выйти
         </button>
       </aside>
 
-      <main className="a-main">
-        {page === 'products'    && <ProductsPage />}
-        {page === 'categories'  && <CategoriesPage />}
-        {page === 'markup'      && <MarkupPage />}
-        {page === 'wildberries' && <WildberriesPage />}
-        {page === 'logs'        && <LogsPage />}
-        {page === 'tokens'      && <TokensPage />}
-      </main>
+      <div className="a-main-wrap">
+        <header className="a-topbar">
+          <FpBalance />
+        </header>
+        <main className="a-main">
+          {page === 'products'    && <ProductsPage />}
+          {page === 'categories'  && <CategoriesPage />}
+          {page === 'markup'      && <MarkupPage />}
+          {page === 'wildberries' && <WildberriesPage />}
+          {page === 'logs'        && <LogsPage />}
+          {page === 'tokens'      && <TokensPage />}
+        </main>
+      </div>
     </div>
   )
 }
