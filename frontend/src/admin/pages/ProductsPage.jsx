@@ -643,7 +643,17 @@ export default function ProductsPage() {
                       <td className="a-col-name">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           {p.paused && <span className="a-badge a-badge--red" title="На паузе">⏸</span>}
-                          <span>{p.name}</span>
+                          <a
+                            href={`${window.location.origin}/?product=${p.product_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Открыть на сайте"
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#c4acff'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'inherit'}
+                          >
+                            {p.name}
+                          </a>
                         </div>
                       </td>
                       <td>{p.group_name}</td>

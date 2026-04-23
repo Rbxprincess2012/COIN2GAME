@@ -43,6 +43,17 @@ function App() {
   const [platformLoading, setPlatformLoading] = useState(false)
 
   useEffect(() => {
+    const productId = new URLSearchParams(window.location.search).get('product')
+    if (productId) {
+      fetch(`${API_BASE}/api/product/${encodeURIComponent(productId)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(product => { if (product) goToProduct(product) })
+        .catch(() => {})
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  useEffect(() => {
     const storedCart = localStorage.getItem('topup_cart')
     const storedEmail = localStorage.getItem('topup_email')
     const storedLoggedIn = localStorage.getItem('topup_logged_in')

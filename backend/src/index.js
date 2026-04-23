@@ -118,6 +118,36 @@ app.get('/api/products', async (req, res) => {
   }
 })
 
+// GET /api/product/:id — один товар по product_id (для прямых ссылок)
+app.get('/api/product/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image, sales_count
+       FROM products WHERE product_id = $1`,
+      [req.params.id]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
+    const p = result.rows[0]
+    const markupMap = await getMarkupMap()
+    res.json({
+      id: p.product_id,
+      title: p.name,
+      service: p.group_name,
+      platform: p.group_name,
+      category: 'Цифровые товары',
+      price: p.price_site != null ? Math.ceil(parseFloat(p.price_site)) : applyMarkup(p.price, p.group_name, p.markup, markupMap),
+      base_price: parseFloat(p.price),
+      region: p.region || 'Любой',
+      description: p.description || '',
+      image: p.image || null,
+      in_stock: p.in_stock,
+      product_type: p.product_type,
+    })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // GET /api/groups — группы из БД (только те, у которых есть товары в наличии)
 app.get('/api/groups', async (req, res) => {
   try {
