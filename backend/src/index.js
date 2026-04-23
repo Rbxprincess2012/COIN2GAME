@@ -28,7 +28,9 @@ async function getMarkupMap() {
   for (const row of result.rows) {
     let v = row.value
     try { v = JSON.parse(v) } catch {}
-    map[row.key] = typeof v === 'number' ? v : parseFloat(v)
+    const n = typeof v === 'number' ? v : parseFloat(v)
+    if (!isNaN(n)) map[row.key] = n
+    else if (typeof v === 'string') map[row.key] = v
   }
   return map
 }
@@ -46,7 +48,7 @@ function applyMarkup(price, groupName, productMarkup, markupMap) {
   const tax = ENTREPRENEUR_TAX[entKey] ?? 6
   const deduction = (cp + tax) / 100
   const base = parseFloat(price) * (1 + pct / 100)
-  return Math.round(deduction > 0 && deduction < 1 ? base / (1 - deduction) : base)
+  return Math.ceil(deduction > 0 && deduction < 1 ? base / (1 - deduction) : base)
 }
 
 // GET /api/products?group=Steam&in_stock=true&search=pubg

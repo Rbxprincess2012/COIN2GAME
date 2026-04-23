@@ -71,6 +71,9 @@ export const adminApi = {
     URL.revokeObjectURL(url)
   },
 
+  // ForeignPay
+  getFpBalance: () => req('GET', '/fp/balance'),
+
   // Logs
   getLogs: (params = {}) => {
     const q = new URLSearchParams(params).toString()

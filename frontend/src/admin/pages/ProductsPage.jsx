@@ -334,6 +334,7 @@ export default function ProductsPage() {
     setSyncGamesResult(games)
     setSyncing(false)
     load()
+    window.dispatchEvent(new Event('fp-sync'))
   }
 
   // ── Price inline editing ───────────────────────────────────────────────────
@@ -653,38 +654,30 @@ export default function ProductsPage() {
 
                       {/* Цена сайт */}
                       <td>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="number"
-                            className={`a-input a-input--sm a-price-input${autoSite ? ' a-price-input--auto' : ''}`}
-                            style={{ textAlign: 'right' }}
-                            placeholder={Math.round(displaySite).toLocaleString('ru-RU')}
-                            value={getPriceEdit(p, 'price_site')}
-                            onChange={e => setPriceEdit(p.product_id, 'price_site', e.target.value)}
-                            onBlur={() => savePriceField(p, 'price_site')}
-                          />
-                          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2, pointerEvents: 'none' }}>
-                            <MarginBadge sellPrice={displaySite} cost={cost} deductionsPct={siteDeductions} />
-                          </div>
-                        </div>
+                        <input
+                          type="number"
+                          className={`a-input a-input--sm a-price-input${autoSite ? ' a-price-input--auto' : ''}`}
+                          style={{ textAlign: 'right', display: 'block' }}
+                          placeholder={Math.round(displaySite).toLocaleString('ru-RU')}
+                          value={getPriceEdit(p, 'price_site')}
+                          onChange={e => setPriceEdit(p.product_id, 'price_site', e.target.value)}
+                          onBlur={() => savePriceField(p, 'price_site')}
+                        />
+                        <MarginBadge sellPrice={displaySite} cost={cost} deductionsPct={siteDeductions} />
                       </td>
 
                       {/* Цена ВБ */}
                       <td>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="number"
-                            className={`a-input a-input--sm a-price-input${autoWb ? ' a-price-input--auto' : ''}`}
-                            style={{ textAlign: 'right' }}
-                            placeholder={Math.round(displayWb).toLocaleString('ru-RU')}
-                            value={getPriceEdit(p, 'price_wb')}
-                            onChange={e => setPriceEdit(p.product_id, 'price_wb', e.target.value)}
-                            onBlur={() => savePriceField(p, 'price_wb')}
-                          />
-                          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 2, pointerEvents: 'none' }}>
-                            <MarginBadge sellPrice={displayWb} cost={cost} deductionsPct={wbDeductions} />
-                          </div>
-                        </div>
+                        <input
+                          type="number"
+                          className={`a-input a-input--sm a-price-input${autoWb ? ' a-price-input--auto' : ''}`}
+                          style={{ textAlign: 'right', display: 'block' }}
+                          placeholder={Math.round(displayWb).toLocaleString('ru-RU')}
+                          value={getPriceEdit(p, 'price_wb')}
+                          onChange={e => setPriceEdit(p.product_id, 'price_wb', e.target.value)}
+                          onBlur={() => savePriceField(p, 'price_wb')}
+                        />
+                        <MarginBadge sellPrice={displayWb} cost={cost} deductionsPct={wbDeductions} />
                       </td>
 
                       <td style={{ textAlign: 'center' }}>

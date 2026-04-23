@@ -284,6 +284,20 @@ router.put('/settings', async (req, res) => {
   }
 })
 
+// ── ForeignPay balance ────────────────────────────────────────────────────────
+
+router.get('/fp/balance', async (req, res) => {
+  try {
+    const fpRes = await fetch('https://acquiring.foreignpay.ru/webhook/my_balance', {
+      headers: { Authorization: `Bearer ${process.env.FP_TOKEN}` },
+    })
+    const data = await fpRes.json()
+    res.json(data)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Wildberries commission sync ───────────────────────────────────────────────
 
 export async function syncWbCommissions() {
