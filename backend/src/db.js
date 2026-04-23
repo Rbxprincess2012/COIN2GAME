@@ -64,6 +64,14 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS price_wb NUMERIC(12,2);
   `)
 
+  // Migration: add wb_nmid and wb_article columns if missing
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_nmid BIGINT;
+  `)
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_article TEXT;
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,

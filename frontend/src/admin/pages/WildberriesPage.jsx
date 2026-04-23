@@ -16,7 +16,9 @@ export default function WildberriesPage() {
   const [saved, setSaved] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncingArticles, setSyncingArticles] = useState(false)
+  const [syncingPrices, setSyncingPrices] = useState(false)
   const [articlesSyncResult, setArticlesSyncResult] = useState(null)
+  const [pricesSyncResult, setPricesSyncResult] = useState(null)
   const [syncError, setSyncError] = useState('')
   const [exportingTemplate, setExportingTemplate] = useState(false)
   const [commissions, setCommissions] = useState([])
@@ -60,6 +62,20 @@ export default function WildberriesPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+  }
+
+  async function handleSyncPrices() {
+    setSyncingPrices(true)
+    setSyncError('')
+    setPricesSyncResult(null)
+    try {
+      const res = await adminApi.syncWbPrices()
+      if (res.error) throw new Error(res.error)
+      setPricesSyncResult(res)
+    } catch (e) {
+      setSyncError(e.message)
+    }
+    setSyncingPrices(false)
   }
 
   async function handleSyncCommissions() {
@@ -118,6 +134,23 @@ export default function WildberriesPage() {
 
       {saved && <div className="a-alert a-alert--success">Настройки сохранены</div>}
       {syncError && <div className="a-alert a-alert--error">{syncError}</div>}
+      {pricesSyncResult && (
+        <div className="a-alert a-alert--success">
+          Цены на WB обновлены: загружено {pricesSyncResult.pushed} из {pricesSyncResult.total}
+          {pricesSyncResult.errors > 0 && ` · ошибок: ${pricesSyncResult.errors}`}
+        </div>
+      )}
+
+      <div className="a-card">
+        <h3 className="a-card-title" style={{ marginBottom: 8 }}>Цены на Wildberries</h3>
+        <p className="a-muted" style={{ fontSize: '0.82rem', marginBottom: 12 }}>
+          Цены рассчитываются по той же формуле что и на сайте (себестоимость × наценка ÷ (1 − комиссия WB − налог)).
+          Обновляются автоматически каждый час вместе с синхронизацией FP.
+        </p>
+        <button className="a-btn a-btn--primary a-btn--sm" onClick={handleSyncPrices} disabled={syncingPrices}>
+          {syncingPrices ? 'Загружаем цены...' : '↑ Загрузить цены на WB сейчас'}
+        </button>
+      </div>
 
       {/* Категории и комиссии */}
       <div className="a-card">

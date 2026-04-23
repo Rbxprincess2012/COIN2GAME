@@ -398,6 +398,79 @@ router.post('/wb/sync-articles', async (req, res) => {
   }
 })
 
+// ── WB: push prices via API ───────────────────────────────────────────────────
+
+const ENTREPRENEUR_TAX_WB = { marina: 8, tatyana: 6 }
+
+export async function syncWbPrices() {
+  const sRes = await pool.query(`SELECT key, value FROM settings`)
+  const s = {}
+  for (const row of sRes.rows) {
+    try { s[row.key] = JSON.parse(row.value) } catch { s[row.key] = row.value }
+  }
+
+  const marinaToken  = s['wb_marina_token']
+  const tatyanaToken = s['wb_tatyana_token']
+  if (!marinaToken && !tatyanaToken) throw new Error('Нет токена WB')
+
+  const targetMargin = parseFloat(s['markup_global']) || 0
+  const wbCommission = parseFloat(s['wb_commission']) || 25
+  const entKey = (s['active_entrepreneur'] || 'tatyana').toString().replace(/"/g, '')
+  const tax = ENTREPRENEUR_TAX_WB[entKey] ?? 6
+  const wbDeduct = wbCommission + tax
+  const factor = (1 + targetMargin / 100) / (1 - wbDeduct / 100)
+
+  // Load all products linked to WB
+  const pRes = await pool.query(`
+    SELECT product_id, price, price_wb, wb_nmid, wb_article
+    FROM products
+    WHERE wb_nmid IS NOT NULL AND (paused IS NULL OR paused = false) AND in_stock = true
+  `)
+
+  if (pRes.rows.length === 0) return { ok: true, pushed: 0, skipped: 0 }
+
+  // Group by token (V-MARINA-* → marina, V-TATYANA-* or V-* → tatyana)
+  const byToken = { [marinaToken]: [], [tatyanaToken]: [] }
+  for (const p of pRes.rows) {
+    const price = p.price_wb != null
+      ? Math.ceil(parseFloat(p.price_wb))
+      : Math.ceil(parseFloat(p.price) * factor)
+
+    const isMarina = p.wb_article?.toUpperCase().includes('MARINA')
+    const token = isMarina ? marinaToken : tatyanaToken
+    if (!token) continue
+    if (!byToken[token]) byToken[token] = []
+    byToken[token].push({ nmID: Number(p.wb_nmid), price })
+  }
+
+  let pushed = 0
+  let errors = 0
+
+  for (const [token, items] of Object.entries(byToken)) {
+    if (!token || items.length === 0) continue
+    // Send in batches of 100
+    for (let i = 0; i < items.length; i += 100) {
+      const batch = items.slice(i, i + 100)
+      const res = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/upload/task', {
+        method: 'POST',
+        headers: { Authorization: token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: batch }),
+      })
+      const data = await res.json()
+      if (res.ok && !data.error) pushed += batch.length
+      else errors += batch.length
+    }
+  }
+
+  await log('WB_PRICES_SYNC', null, null, { pushed, errors, total: pRes.rows.length })
+  return { ok: true, pushed, errors, total: pRes.rows.length }
+}
+
+router.post('/wb/sync-prices', async (req, res) => {
+  try { res.json(await syncWbPrices()) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 // ── Logs ─────────────────────────────────────────────────────────────────────
 
 router.get('/logs', async (req, res) => {

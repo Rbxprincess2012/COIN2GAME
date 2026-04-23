@@ -53,6 +53,7 @@ export const adminApi = {
   // Wildberries
   syncWbCommissions: () => req('POST', '/wb/sync-commissions'),
   syncWbArticles: () => req('POST', '/wb/sync-articles'),
+  syncWbPrices: () => req('POST', '/wb/sync-prices'),
   downloadWbTemplate: async () => {
     const res = await fetch(`${API_BASE}/api/admin/wb/export-template`, {
       headers: { Authorization: `Bearer ${getToken()}` },
