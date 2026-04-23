@@ -1,6 +1,7 @@
 const SI = 'https://cdn.simpleicons.org'
 
 export const SERVICE_CONFIG = {
+  // ── Gaming platforms ──────────────────────────────────────────────────────
   'APPLE ID': {
     label: 'Apple ID',
     logo: `${SI}/apple/a2aaad`,
@@ -31,6 +32,12 @@ export const SERVICE_CONFIG = {
     accent: '#66c0f4',
     bg: 'linear-gradient(135deg, #0d1824 0%, #1b2838 100%)',
   },
+  'Battle.net': {
+    label: 'Battle.net',
+    logo: `${SI}/battlenet/00aeff`,
+    accent: '#00aeff',
+    bg: 'linear-gradient(135deg, #001020 0%, #00203a 100%)',
+  },
   'Valorant': {
     label: 'Valorant',
     logo: `${SI}/valorant/ff4655`,
@@ -54,6 +61,275 @@ export const SERVICE_CONFIG = {
     logo: `${SI}/razer/44d62c`,
     accent: '#44d62c',
     bg: 'linear-gradient(135deg, #001200 0%, #002600 100%)',
+  },
+  'Roblox': {
+    label: 'Roblox',
+    logo: `${SI}/roblox/e42b26`,
+    accent: '#e42b26',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2e0303 100%)',
+  },
+  'Minecraft': {
+    label: 'Minecraft',
+    logo: `${SI}/minecraft/62b47a`,
+    accent: '#62b47a',
+    bg: 'linear-gradient(135deg, #061410 0%, #0e2418 100%)',
+  },
+  'Fortnite': {
+    label: 'Fortnite',
+    logo: `${SI}/fortnite/00d0ff`,
+    accent: '#00d0ff',
+    bg: 'linear-gradient(135deg, #001a24 0%, #002d3d 100%)',
+  },
+  'League Of Legends': {
+    label: 'League of Legends',
+    logo: `${SI}/leagueoflegends/c69b3a`,
+    accent: '#c69b3a',
+    bg: 'linear-gradient(135deg, #0a0800 0%, #1c1400 100%)',
+  },
+  'Apex Legends Mobile': {
+    label: 'Apex Legends',
+    logo: `${SI}/apexlegends/da292a`,
+    accent: '#da292a',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2e0000 100%)',
+  },
+
+  // ── Games (no SI logo) ────────────────────────────────────────────────────
+  'Genshin Impact': {
+    label: 'Genshin Impact',
+    accent: '#4fc3f7',
+    bg: 'linear-gradient(135deg, #001828 0%, #002a3a 100%)',
+  },
+  'Honkai Star Rail': {
+    label: 'Honkai Star Rail',
+    accent: '#a78bfa',
+    bg: 'linear-gradient(135deg, #0a0018 0%, #180030 100%)',
+  },
+  'Free Fire': {
+    label: 'Free Fire',
+    accent: '#ff6b00',
+    bg: 'linear-gradient(135deg, #1a0800 0%, #2e1200 100%)',
+  },
+  'Mobile Legends': {
+    label: 'Mobile Legends',
+    accent: '#e53935',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0808 100%)',
+  },
+  'Mobile Legends GLOBAL': {
+    label: 'ML: Bang Bang',
+    accent: '#e53935',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0808 100%)',
+  },
+  'Honor of Kings': {
+    label: 'Honor of Kings',
+    accent: '#ffd700',
+    bg: 'linear-gradient(135deg, #120a00 0%, #241800 100%)',
+  },
+  'Identity V': {
+    label: 'Identity V',
+    accent: '#c9a96e',
+    bg: 'linear-gradient(135deg, #100800 0%, #201400 100%)',
+  },
+  'Destiny 2': {
+    label: 'Destiny 2',
+    accent: '#b0b8c8',
+    bg: 'linear-gradient(135deg, #060c18 0%, #0e1828 100%)',
+  },
+  'Marvel Rivals': {
+    label: 'Marvel Rivals',
+    accent: '#e62429',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2e0606 100%)',
+  },
+  'Wuthering Waves': {
+    label: 'Wuthering Waves',
+    accent: '#4dd0e1',
+    bg: 'linear-gradient(135deg, #001820 0%, #002830 100%)',
+  },
+  'AFK Journey': {
+    label: 'AFK Journey',
+    accent: '#7c4dff',
+    bg: 'linear-gradient(135deg, #0a0020 0%, #180040 100%)',
+  },
+  'Delta Force': {
+    label: 'Delta Force',
+    accent: '#78909c',
+    bg: 'linear-gradient(135deg, #080e12 0%, #121e24 100%)',
+  },
+  'Magic Chess Go Go': {
+    label: 'Magic Chess',
+    accent: '#ab47bc',
+    bg: 'linear-gradient(135deg, #100018 0%, #20002e 100%)',
+  },
+  'Arena Breakout': {
+    label: 'Arena Breakout',
+    accent: '#ff8f00',
+    bg: 'linear-gradient(135deg, #180c00 0%, #281800 100%)',
+  },
+  'Farlight 84': {
+    label: 'Farlight 84',
+    accent: '#00e5ff',
+    bg: 'linear-gradient(135deg, #001824 0%, #002838 100%)',
+  },
+  'Dragonheir Silent Gods': {
+    label: 'Dragonheir',
+    accent: '#ff6f00',
+    bg: 'linear-gradient(135deg, #180a00 0%, #2c1200 100%)',
+  },
+  'Once Human': {
+    label: 'Once Human',
+    accent: '#80cbc4',
+    bg: 'linear-gradient(135deg, #041410 0%, #0a2420 100%)',
+  },
+  'HELLDIVERS 2': {
+    label: 'HELLDIVERS 2',
+    accent: '#ffeb3b',
+    bg: 'linear-gradient(135deg, #0a0800 0%, #181400 100%)',
+  },
+  'Goddess of Victory Nikke': {
+    label: 'NIKKE',
+    accent: '#e040fb',
+    bg: 'linear-gradient(135deg, #120018 0%, #200030 100%)',
+  },
+  'Stumble Guys': {
+    label: 'Stumble Guys',
+    accent: '#ff6d00',
+    bg: 'linear-gradient(135deg, #181000 0%, #281800 100%)',
+  },
+  'Super SUS': {
+    label: 'Super SUS',
+    accent: '#9c27b0',
+    bg: 'linear-gradient(135deg, #0e0018 0%, #1c002e 100%)',
+  },
+  'Black Desert': {
+    label: 'Black Desert',
+    accent: '#bf360c',
+    bg: 'linear-gradient(135deg, #180800 0%, #280e00 100%)',
+  },
+  'Zepeto': {
+    label: 'Zepeto',
+    accent: '#ff4081',
+    bg: 'linear-gradient(135deg, #1a0010 0%, #2c0020 100%)',
+  },
+  'EVE Echoes': {
+    label: 'EVE Echoes',
+    accent: '#29b6f6',
+    bg: 'linear-gradient(135deg, #001824 0%, #002838 100%)',
+  },
+  'Likee': {
+    label: 'Likee',
+    accent: '#ff5252',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0606 100%)',
+  },
+  'Snowbreak Containment Zone': {
+    label: 'Snowbreak',
+    accent: '#40c4ff',
+    bg: 'linear-gradient(135deg, #001824 0%, #002438 100%)',
+  },
+  'Love and Deepspace': {
+    label: 'Love and Deepspace',
+    accent: '#f48fb1',
+    bg: 'linear-gradient(135deg, #1a0010 0%, #28001e 100%)',
+  },
+
+  // ── Streaming & apps ──────────────────────────────────────────────────────
+  'Netflix': {
+    label: 'Netflix',
+    logo: `${SI}/netflix/e50914`,
+    accent: '#e50914',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'Spotify': {
+    label: 'Spotify',
+    logo: `${SI}/spotify/1db954`,
+    accent: '#1db954',
+    bg: 'linear-gradient(135deg, #001a08 0%, #002e10 100%)',
+  },
+  'Twitch': {
+    label: 'Twitch',
+    logo: `${SI}/twitch/9146ff`,
+    accent: '#9146ff',
+    bg: 'linear-gradient(135deg, #0c0020 0%, #1a0040 100%)',
+  },
+  'Discord': {
+    label: 'Discord',
+    logo: `${SI}/discord/5865f2`,
+    accent: '#5865f2',
+    bg: 'linear-gradient(135deg, #060824 0%, #0e1040 100%)',
+  },
+  'Telegram Stars': {
+    label: 'Telegram Stars',
+    logo: `${SI}/telegram/2aabee`,
+    accent: '#2aabee',
+    bg: 'linear-gradient(135deg, #001824 0%, #00283c 100%)',
+  },
+  'Telegram Premium': {
+    label: 'Telegram Premium',
+    logo: `${SI}/telegram/2aabee`,
+    accent: '#2aabee',
+    bg: 'linear-gradient(135deg, #001824 0%, #00283c 100%)',
+  },
+  'Adobe': {
+    label: 'Adobe',
+    logo: `${SI}/adobe/ff0000`,
+    accent: '#ff0000',
+    bg: 'linear-gradient(135deg, #1a0000 0%, #2c0000 100%)',
+  },
+  'Google Play': {
+    label: 'Google Play',
+    logo: `${SI}/googleplay/01875f`,
+    accent: '#01875f',
+    bg: 'linear-gradient(135deg, #001810 0%, #002c1e 100%)',
+  },
+  'Microsoft': {
+    label: 'Microsoft',
+    logo: `${SI}/microsoft/0078d4`,
+    accent: '#0078d4',
+    bg: 'linear-gradient(135deg, #001020 0%, #001e38 100%)',
+  },
+
+  // ── AI tools ──────────────────────────────────────────────────────────────
+  'OpenAI': {
+    label: 'OpenAI',
+    logo: `${SI}/openai/74aa9c`,
+    accent: '#74aa9c',
+    bg: 'linear-gradient(135deg, #041412 0%, #0a241e 100%)',
+  },
+  'ChatGPT': {
+    label: 'ChatGPT',
+    logo: `${SI}/openai/74aa9c`,
+    accent: '#74aa9c',
+    bg: 'linear-gradient(135deg, #041412 0%, #0a241e 100%)',
+  },
+  'Midjourney': {
+    label: 'Midjourney',
+    logo: `${SI}/midjourney/ffffff`,
+    accent: '#e8ecff',
+    bg: 'linear-gradient(135deg, #080810 0%, #101020 100%)',
+  },
+  'Elevenlabs': {
+    label: 'ElevenLabs',
+    logo: `${SI}/elevenlabs/f5a623`,
+    accent: '#f5a623',
+    bg: 'linear-gradient(135deg, #180e00 0%, #261800 100%)',
+  },
+
+  // ── Other services ────────────────────────────────────────────────────────
+  'JetBrains': {
+    label: 'JetBrains',
+    logo: `${SI}/jetbrains/fe315d`,
+    accent: '#fe315d',
+    bg: 'linear-gradient(135deg, #1a000e 0%, #2c001c 100%)',
+  },
+  'Zoom': {
+    label: 'Zoom',
+    logo: `${SI}/zoom/2d8cff`,
+    accent: '#2d8cff',
+    bg: 'linear-gradient(135deg, #001428 0%, #00223e 100%)',
+  },
+  'Airbnb': {
+    label: 'Airbnb',
+    logo: `${SI}/airbnb/ff5a5f`,
+    accent: '#ff5a5f',
+    bg: 'linear-gradient(135deg, #1a0204 0%, #2c0408 100%)',
   },
 }
 
