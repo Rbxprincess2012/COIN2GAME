@@ -195,6 +195,35 @@ function EditModal({ product, onSave, onClose }) {
   )
 }
 
+function MarginLine({ cost, sellPrice, deductionsPct, target }) {
+  const style = {
+    height: 16,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '0.68rem',
+    marginTop: 3,
+    userSelect: 'none',
+  }
+
+  if (!sellPrice || !cost) {
+    return <div style={style} />
+  }
+
+  const net = parseFloat(sellPrice) * (1 - deductionsPct / 100)
+  const margin = ((net - parseFloat(cost)) / parseFloat(cost)) * 100
+  const netRub = Math.round(net - parseFloat(cost))
+  const ok = margin >= target
+  const color = ok ? '#4ade80' : '#f87171'
+
+  return (
+    <div style={style}>
+      <span style={{ color, fontWeight: 600 }}>{margin.toFixed(1)}%</span>
+      <span style={{ color: 'rgba(146,162,212,0.6)' }}>₽{netRub.toLocaleString('ru-RU')}</span>
+    </div>
+  )
+}
+
 const EMPTY_FILTERS = { id: '', search: '', group: '', region: '', product_type: '', status: 'active', manual_price: '', margin_below: '' }
 
 export default function ProductsPage() {
@@ -666,41 +695,31 @@ export default function ProductsPage() {
                       <td>₽{cost.toLocaleString('ru-RU')}</td>
 
                       {/* Цена сайт */}
-                      <td>
+                      <td style={{ paddingBottom: 6 }}>
                         <input
                           type="number"
                           className={`a-input a-input--sm a-price-input${autoSite ? ' a-price-input--auto' : ''}`}
-                          style={{
-                            textAlign: 'right',
-                            borderColor: calcMargin(displaySite, cost, siteDeductions) !== null
-                              ? (calcMargin(displaySite, cost, siteDeductions) >= settings.targetMargin ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.5)')
-                              : undefined,
-                          }}
+                          style={{ textAlign: 'right' }}
                           placeholder={Math.round(displaySite).toLocaleString('ru-RU')}
                           value={getPriceEdit(p, 'price_site')}
                           onChange={e => setPriceEdit(p.product_id, 'price_site', e.target.value)}
                           onBlur={() => savePriceField(p, 'price_site')}
-                          title={calcMargin(displaySite, cost, siteDeductions) !== null ? `Маржа: ${calcMargin(displaySite, cost, siteDeductions).toFixed(1)}%` : ''}
                         />
+                        <MarginLine cost={cost} sellPrice={displaySite} deductionsPct={siteDeductions} target={settings.targetMargin} />
                       </td>
 
                       {/* Цена ВБ */}
-                      <td>
+                      <td style={{ paddingBottom: 6 }}>
                         <input
                           type="number"
                           className={`a-input a-input--sm a-price-input${autoWb ? ' a-price-input--auto' : ''}`}
-                          style={{
-                            textAlign: 'right',
-                            borderColor: calcMargin(displayWb, cost, wbDeductions) !== null
-                              ? (calcMargin(displayWb, cost, wbDeductions) >= settings.targetMargin ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.5)')
-                              : undefined,
-                          }}
+                          style={{ textAlign: 'right' }}
                           placeholder={Math.round(displayWb).toLocaleString('ru-RU')}
                           value={getPriceEdit(p, 'price_wb')}
                           onChange={e => setPriceEdit(p.product_id, 'price_wb', e.target.value)}
                           onBlur={() => savePriceField(p, 'price_wb')}
-                          title={calcMargin(displayWb, cost, wbDeductions) !== null ? `Маржа: ${calcMargin(displayWb, cost, wbDeductions).toFixed(1)}%` : ''}
                         />
+                        <MarginLine cost={cost} sellPrice={displayWb} deductionsPct={wbDeductions} target={settings.targetMargin} />
                       </td>
 
                       <td style={{ textAlign: 'center' }}>
