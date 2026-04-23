@@ -88,6 +88,22 @@ router.get('/products', async (req, res) => {
   }
 })
 
+router.get('/products/group-description', async (req, res) => {
+  try {
+    const { group } = req.query
+    if (!group) return res.json({ description: null })
+    const r = await pool.query(
+      `SELECT description FROM products
+       WHERE group_name = $1 AND description IS NOT NULL AND description != ''
+       ORDER BY updated_at DESC LIMIT 1`,
+      [group]
+    )
+    res.json({ description: r.rows[0]?.description || null })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 router.get('/products/regions', async (req, res) => {
   try {
     const result = await pool.query(

@@ -39,6 +39,7 @@ export const adminApi = {
     return req('GET', `/products${q ? '?' + q : ''}`)
   },
   getGroups: () => req('GET', '/products/groups'),
+  getGroupDescription: (group) => req('GET', `/products/group-description?group=${encodeURIComponent(group)}`),
   getRegions: () => req('GET', '/products/regions'),
   updateProduct: (id, data) => req('PUT', `/products/${id}`, data),
   deleteProduct: (id) => req('DELETE', `/products/${id}`),

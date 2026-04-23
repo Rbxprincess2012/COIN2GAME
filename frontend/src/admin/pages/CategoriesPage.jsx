@@ -4,6 +4,20 @@ import { adminApi } from '../adminApi'
 function DescriptionModal({ group, initial, onSave, onClose }) {
   const [text, setText] = useState(initial || '')
   const [saving, setSaving] = useState(false)
+  const [loadingDraft, setLoadingDraft] = useState(false)
+  const [draftLoaded, setDraftLoaded] = useState(false)
+
+  useEffect(() => {
+    if (initial) return // уже есть сохранённое — не перебиваем
+    setLoadingDraft(true)
+    adminApi.getGroupDescription(group).then(({ description }) => {
+      if (description) {
+        setText(description)
+        setDraftLoaded(true)
+      }
+      setLoadingDraft(false)
+    }).catch(() => setLoadingDraft(false))
+  }, [group, initial])
 
   async function handleSave() {
     setSaving(true)
@@ -20,17 +34,23 @@ function DescriptionModal({ group, initial, onSave, onClose }) {
           <button className="a-close" onClick={onClose}>×</button>
         </div>
         <div className="a-modal-body">
+          {draftLoaded && (
+            <div className="a-alert a-alert--success" style={{ marginBottom: 12, fontSize: '0.8rem' }}>
+              Загружен черновик из существующих товаров — отредактируйте и сохраните.
+            </div>
+          )}
           <p className="a-muted" style={{ fontSize: '0.82rem', marginBottom: 8 }}>
-            Это описание будет применено ко всем товарам группы, у которых нет собственного описания — при следующей синхронизации.
+            Это описание будет применено ко всем товарам группы без собственного описания при следующей синхронизации.
           </p>
           <label className="a-field">
             <span>Описание</span>
             <textarea
               rows={8}
-              value={text}
+              value={loadingDraft ? 'Загрузка...' : text}
               onChange={e => setText(e.target.value)}
               placeholder="Введите описание категории..."
-              autoFocus
+              disabled={loadingDraft}
+              autoFocus={!loadingDraft}
             />
           </label>
         </div>
@@ -40,12 +60,12 @@ function DescriptionModal({ group, initial, onSave, onClose }) {
             <button
               className="a-btn a-btn--ghost"
               style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }}
-              onClick={() => { setText(''); }}
+              onClick={() => setText('')}
             >
               Очистить
             </button>
           )}
-          <button className="a-btn a-btn--primary" onClick={handleSave} disabled={saving}>
+          <button className="a-btn a-btn--primary" onClick={handleSave} disabled={saving || loadingDraft}>
             {saving ? 'Сохраняем...' : 'Сохранить'}
           </button>
         </div>
