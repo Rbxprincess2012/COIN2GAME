@@ -196,6 +196,21 @@ export async function syncProducts() {
     if (blocked) autoPaused++
   }
 
+  // Apply group descriptions to products without individual descriptions
+  try {
+    const sRes = await pool.query(`SELECT value FROM settings WHERE key='group_descriptions'`)
+    const raw = sRes.rows[0]?.value
+    const groupDescs = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {}
+    for (const [groupName, desc] of Object.entries(groupDescs)) {
+      if (!desc) continue
+      await pool.query(
+        `UPDATE products SET description = $1
+         WHERE group_name = $2 AND (description IS NULL OR description = '')`,
+        [desc, groupName]
+      )
+    }
+  } catch {}
+
   await log('SYNC', null, null, { total_from_api: data.length, updated, inserted, auto_paused: autoPaused })
   return { ok: true, updated, inserted, total: data.length, autoPaused }
 }
