@@ -166,91 +166,90 @@ function isBlockedInRussia(name = '', region = '') {
 }
 
 // Sync prices/stock from ForeignPay API
-router.post('/products/sync', async (req, res) => {
-  try {
-    const fpRes = await fetch(
-      'https://keys.foreignpay.ru/webhook/v2/merchant/get-products?currency=RUB',
-      { headers: { Authorization: `Bearer ${process.env.FP_TOKEN}` } }
+export async function syncProducts() {
+  const fpRes = await fetch(
+    'https://keys.foreignpay.ru/webhook/v2/merchant/get-products?currency=RUB',
+    { headers: { Authorization: `Bearer ${process.env.FP_TOKEN}` } }
+  )
+  const data = await fpRes.json()
+  if (!Array.isArray(data)) throw new Error('Invalid API response from FP')
+
+  let updated = 0, inserted = 0, autoPaused = 0
+  for (const p of data) {
+    const blocked = isBlockedInRussia(p.name, p.region)
+    const r = await pool.query(
+      `INSERT INTO products (product_id, name, price, in_stock, group_name, product_type, region, description, image, paused, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+       ON CONFLICT (product_id) DO UPDATE SET
+         price = EXCLUDED.price,
+         in_stock = EXCLUDED.in_stock,
+         product_type = EXCLUDED.product_type,
+         description = COALESCE(EXCLUDED.description, products.description),
+         image = COALESCE(EXCLUDED.image, products.image),
+         paused = CASE WHEN products.paused = true THEN true ELSE EXCLUDED.paused END,
+         updated_at = NOW()
+       RETURNING (xmax = 0) AS inserted`,
+      [String(p.product_id), p.name, p.price, p.in_stock, p.group, p.type, p.region, p.description || null, p.image || null, blocked]
     )
-    const data = await fpRes.json()
-    if (!Array.isArray(data)) return res.status(500).json({ error: 'Invalid API response' })
-
-    let updated = 0
-    let inserted = 0
-    let autoPaused = 0
-    for (const p of data) {
-      const blocked = isBlockedInRussia(p.name, p.region)
-      const r = await pool.query(
-        `INSERT INTO products (product_id, name, price, in_stock, group_name, product_type, region, description, image, paused, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-         ON CONFLICT (product_id) DO UPDATE SET
-           price = EXCLUDED.price,
-           in_stock = EXCLUDED.in_stock,
-           product_type = EXCLUDED.product_type,
-           description = COALESCE(EXCLUDED.description, products.description),
-           image = COALESCE(EXCLUDED.image, products.image),
-           paused = CASE WHEN products.paused = true THEN true ELSE EXCLUDED.paused END,
-           updated_at = NOW()
-         RETURNING (xmax = 0) AS inserted`,
-        [String(p.product_id), p.name, p.price, p.in_stock, p.group, p.type, p.region, p.description || null, p.image || null, blocked]
-      )
-      if (r.rows[0]?.inserted) inserted++
-      else updated++
-      if (blocked) autoPaused++
-    }
-
-    await log('SYNC', null, null, { total_from_api: data.length, updated, inserted, auto_paused: autoPaused })
-    res.json({ ok: true, updated, inserted, total: data.length, autoPaused })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
+    if (r.rows[0]?.inserted) inserted++
+    else updated++
+    if (blocked) autoPaused++
   }
+
+  await log('SYNC', null, null, { total_from_api: data.length, updated, inserted, auto_paused: autoPaused })
+  return { ok: true, updated, inserted, total: data.length, autoPaused }
+}
+
+router.post('/products/sync', async (req, res) => {
+  try { res.json(await syncProducts()) }
+  catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 // ── Games ─────────────────────────────────────────────────────────────────────
 
-router.post('/games/sync', async (req, res) => {
-  try {
-    const fpRes = await fetch(
-      'https://keys.foreignpay.ru/webhook/v2/merchant/get-games',
-      { headers: { Authorization: `Bearer ${process.env.FP_TOKEN}` } }
+export async function syncGames() {
+  const fpRes = await fetch(
+    'https://keys.foreignpay.ru/webhook/v2/merchant/get-games',
+    { headers: { Authorization: `Bearer ${process.env.FP_TOKEN}` } }
+  )
+  const data = await fpRes.json()
+  if (!Array.isArray(data)) throw new Error('Invalid API response from FP games')
+
+  let updated = 0, inserted = 0
+  for (const g of data) {
+    const r = await pool.query(
+      `INSERT INTO games (game_id, name, group_name, launcher, price, in_stock, region, description, image,
+         age_rating, genres, developer, release_date, languages, supported_platforms, updated_at)
+       VALUES ($1,$2,$3,$4,$5,true,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
+       ON CONFLICT (game_id) DO UPDATE SET
+         name=EXCLUDED.name, price=EXCLUDED.price, group_name=EXCLUDED.group_name,
+         launcher=EXCLUDED.launcher, in_stock=true, region=EXCLUDED.region,
+         description=EXCLUDED.description, image=EXCLUDED.image,
+         age_rating=EXCLUDED.age_rating, genres=EXCLUDED.genres,
+         developer=EXCLUDED.developer, release_date=EXCLUDED.release_date,
+         languages=EXCLUDED.languages, supported_platforms=EXCLUDED.supported_platforms,
+         updated_at=NOW()
+       RETURNING (xmax = 0) AS inserted`,
+      [
+        String(g.product_id), g.name, g.launcher || 'Игры', g.launcher || null, g.price,
+        g.activation_region, g.description, g.image,
+        g.age_rating || null, g.genres || null, g.developer || null,
+        g.release_date || null,
+        g.languages ? JSON.stringify(g.languages) : null,
+        g.supported_platforms || null,
+      ]
     )
-    const data = await fpRes.json()
-    if (!Array.isArray(data)) return res.status(500).json({ error: 'Invalid API response', raw: data })
-
-    let updated = 0
-    let inserted = 0
-    for (const g of data) {
-      const r = await pool.query(
-        `INSERT INTO games (game_id, name, group_name, launcher, price, in_stock, region, description, image,
-           age_rating, genres, developer, release_date, languages, supported_platforms, updated_at)
-         VALUES ($1,$2,$3,$4,$5,true,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
-         ON CONFLICT (game_id) DO UPDATE SET
-           name=EXCLUDED.name, price=EXCLUDED.price, group_name=EXCLUDED.group_name,
-           launcher=EXCLUDED.launcher, in_stock=true, region=EXCLUDED.region,
-           description=EXCLUDED.description, image=EXCLUDED.image,
-           age_rating=EXCLUDED.age_rating, genres=EXCLUDED.genres,
-           developer=EXCLUDED.developer, release_date=EXCLUDED.release_date,
-           languages=EXCLUDED.languages, supported_platforms=EXCLUDED.supported_platforms,
-           updated_at=NOW()
-         RETURNING (xmax = 0) AS inserted`,
-        [
-          String(g.product_id), g.name, g.launcher || 'Игры', g.launcher || null, g.price,
-          g.activation_region, g.description, g.image,
-          g.age_rating || null, g.genres || null, g.developer || null,
-          g.release_date || null,
-          g.languages ? JSON.stringify(g.languages) : null,
-          g.supported_platforms || null,
-        ]
-      )
-      if (r.rows[0]?.inserted) inserted++
-      else updated++
-    }
-
-    await log('GAMES_SYNC', null, null, { total_from_api: data.length, updated, inserted })
-    res.json({ ok: true, updated, inserted, total: data.length })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
+    if (r.rows[0]?.inserted) inserted++
+    else updated++
   }
+
+  await log('GAMES_SYNC', null, null, { total_from_api: data.length, updated, inserted })
+  return { ok: true, updated, inserted, total: data.length }
+}
+
+router.post('/games/sync', async (req, res) => {
+  try { res.json(await syncGames()) }
+  catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 // ── Settings (markup) ────────────────────────────────────────────────────────

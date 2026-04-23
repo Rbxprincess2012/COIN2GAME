@@ -9,7 +9,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import cron from 'node-cron'
 import { pool, initDb } from './db.js'
-import adminRoutes, { syncWbCommissions, syncWbArticles } from './admin-routes.js'
+import adminRoutes, { syncWbCommissions, syncWbArticles, syncProducts, syncGames } from './admin-routes.js'
 
 dotenv.config()
 
@@ -433,6 +433,17 @@ app.post('/api/cp/complete', async (req, res) => {
 })
 
 // ── Cron jobs ─────────────────────────────────────────────────────────────────
+
+// Каждый час — синхронизация товаров и игр с ForeignPay
+cron.schedule('0 * * * *', async () => {
+  console.log('[cron] FP products+games sync starting...')
+  try {
+    const [p, g] = await Promise.all([syncProducts(), syncGames()])
+    console.log(`[cron] FP sync OK: products updated=${p.updated} inserted=${p.inserted}, games updated=${g.updated} inserted=${g.inserted}`)
+  } catch (e) {
+    console.error('[cron] FP sync failed:', e.message)
+  }
+})
 
 // Ежедневно в 03:15 обновляем комиссии WB
 cron.schedule('15 3 * * *', async () => {
