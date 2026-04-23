@@ -16,23 +16,21 @@ function getGroupCfg(groupName, idx) {
 
 function GroupTile({ g, idx, onSelectService }) {
   const cfg = getGroupCfg(g.group, idx)
-  const imgSrc = cfg.image || g.icon || null
+  const logoSrc = cfg.logo || null
   return (
     <button
       className="platform-tile"
       style={{ background: cfg.bg }}
       onClick={() => onSelectService(g.group)}
     >
-      <div className="platform-tile-img-wrap">
-        {imgSrc && (
-          <img
-            src={imgSrc}
-            alt={g.group}
-            className="platform-tile-img"
-            onError={e => { e.target.style.display = 'none' }}
-          />
-        )}
-      </div>
+      {logoSrc && (
+        <img
+          src={logoSrc}
+          alt=""
+          className="platform-tile-logo"
+          onError={e => { e.target.style.display = 'none' }}
+        />
+      )}
       <div className="platform-tile-info">
         <span className="platform-tile-name" style={{ color: cfg.accent }}>
           {cfg.label || g.group}

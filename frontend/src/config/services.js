@@ -1,57 +1,59 @@
+const SI = 'https://cdn.simpleicons.org'
+
 export const SERVICE_CONFIG = {
   'APPLE ID': {
     label: 'Apple ID',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_APPLE_ID.png',
+    logo: `${SI}/apple/a2aaad`,
     accent: '#a2aaad',
-    bg: 'linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%)',
+    bg: 'linear-gradient(135deg, #1a1a1c 0%, #28282c 100%)',
   },
   'Nintendo': {
     label: 'Nintendo',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_Nintendoeshop.png',
-    accent: '#ff4444',
-    bg: 'linear-gradient(135deg, #1a0000 0%, #2d0303 100%)',
+    logo: `${SI}/nintendo/e4000f`,
+    accent: '#e4000f',
+    bg: 'linear-gradient(135deg, #1a0002 0%, #300005 100%)',
   },
   'Playstation': {
     label: 'PlayStation',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_playstation.png',
+    logo: `${SI}/playstation/0070d1`,
     accent: '#0070d1',
-    bg: 'linear-gradient(135deg, #001224 0%, #00214a 100%)',
+    bg: 'linear-gradient(135deg, #00101e 0%, #001f3d 100%)',
   },
-  'PUBG Battleground': {
-    label: 'PUBG PC',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_pubgBG.png',
-    accent: '#c8a95a',
-    bg: 'linear-gradient(135deg, #1a1408 0%, #2a2010 100%)',
-  },
-  'PUBG Mobile': {
-    label: 'PUBG Mobile',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_pubg.png',
-    accent: '#f2a900',
-    bg: 'linear-gradient(135deg, #1a1000 0%, #2a1c00 100%)',
-  },
-  'Razer Gold': {
-    label: 'Razer Gold',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_RazerGold.png',
-    accent: '#44d62c',
-    bg: 'linear-gradient(135deg, #001400 0%, #002800 100%)',
+  'Xbox': {
+    label: 'Xbox',
+    logo: `${SI}/xbox/52b043`,
+    accent: '#52b043',
+    bg: 'linear-gradient(135deg, #061206 0%, #0f2210 100%)',
   },
   'Steam': {
     label: 'Steam',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_steam.png',
+    logo: `${SI}/steam/66c0f4`,
     accent: '#66c0f4',
     bg: 'linear-gradient(135deg, #0d1824 0%, #1b2838 100%)',
   },
   'Valorant': {
     label: 'Valorant',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_valorant.png',
+    logo: `${SI}/valorant/ff4655`,
     accent: '#ff4655',
-    bg: 'linear-gradient(135deg, #0d0009 0%, #1a0010 100%)',
+    bg: 'linear-gradient(135deg, #0e0008 0%, #1c0012 100%)',
   },
-  'Xbox': {
-    label: 'Xbox',
-    image: 'https://s3.api.foreignpay.ru/products-images/image_Xboxgift.png',
-    accent: '#52b043',
-    bg: 'linear-gradient(135deg, #071407 0%, #0e2410 100%)',
+  'PUBG Mobile': {
+    label: 'PUBG Mobile',
+    logo: `${SI}/pubg/f2a900`,
+    accent: '#f2a900',
+    bg: 'linear-gradient(135deg, #181000 0%, #281c00 100%)',
+  },
+  'PUBG Battleground': {
+    label: 'PUBG PC',
+    logo: `${SI}/pubg/c8a95a`,
+    accent: '#c8a95a',
+    bg: 'linear-gradient(135deg, #181208 0%, #261e0e 100%)',
+  },
+  'Razer Gold': {
+    label: 'Razer Gold',
+    logo: `${SI}/razer/44d62c`,
+    accent: '#44d62c',
+    bg: 'linear-gradient(135deg, #001200 0%, #002600 100%)',
   },
 }
 
