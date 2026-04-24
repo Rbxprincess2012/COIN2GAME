@@ -133,19 +133,29 @@ function App() {
       body: JSON.stringify({ email }),
     })
     const data = await res.json()
-    if (res.ok) {
-      setUserEmail(email)
-      setCodeSent(true)
-      console.log('Код:', data.code)
-    }
+    if (!res.ok) throw new Error(data.error || 'Ошибка отправки')
+    setUserEmail(email)
+    setCodeSent(true)
+    if (data.code) console.log('[DEV] Код:', data.code)
   }
 
-  const handleVerifyCode = (code) => {
-    if (code.length === 4) {
-      setIsLoggedIn(true)
-      setLoginVisible(false)
-      setCodeSent(false)
-    }
+  const handleVerifyCode = async (code) => {
+    const res = await fetch(API_BASE + '/api/auth/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: userEmail, code }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Неверный код')
+    setIsLoggedIn(true)
+    setLoginVisible(false)
+    setCodeSent(false)
+  }
+
+  const handleGoogleLogin = (googleUser) => {
+    setUserEmail(googleUser.email)
+    setIsLoggedIn(true)
+    setLoginVisible(false)
   }
 
   const handleAddToCart = (product) => {
@@ -345,6 +355,7 @@ function App() {
         onClose={() => setLoginVisible(false)}
         onSendCode={handleSendCode}
         onVerifyCode={handleVerifyCode}
+        onGoogleLogin={handleGoogleLogin}
         codeSent={codeSent}
       />
 

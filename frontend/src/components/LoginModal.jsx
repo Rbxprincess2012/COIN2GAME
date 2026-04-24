@@ -1,5 +1,35 @@
 import { useEffect, useRef, useState } from 'react'
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+function GoogleButton({ onLogin }) {
+  const btnRef = useRef(null)
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !window.google) return
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (res) => {
+        // Decode JWT to get email
+        const payload = JSON.parse(atob(res.credential.split('.')[1]))
+        onLogin({ email: payload.email, name: payload.name })
+      },
+    })
+    window.google.accounts.id.renderButton(btnRef.current, {
+      theme: 'filled_black',
+      size: 'large',
+      width: '100%',
+      text: 'signin_with',
+      shape: 'rectangular',
+      locale: 'ru',
+    })
+  }, [onLogin])
+
+  if (!GOOGLE_CLIENT_ID) return null
+
+  return <div ref={btnRef} style={{ width: '100%' }} />
+}
+
 function CodeBoxes({ value, onChange }) {
   const inputs = useRef([])
 
@@ -45,7 +75,7 @@ function CodeBoxes({ value, onChange }) {
   )
 }
 
-function LoginModal({ visible, initialEmail, onClose, onSendCode, onVerifyCode, codeSent }) {
+function LoginModal({ visible, initialEmail, onClose, onSendCode, onVerifyCode, onGoogleLogin, codeSent }) {
   const [email, setEmail] = useState(initialEmail || '')
   const [code, setCode]   = useState('')
   const [step, setStep]   = useState('email')
@@ -108,6 +138,13 @@ function LoginModal({ visible, initialEmail, onClose, onSendCode, onVerifyCode, 
               Введите email — пришлём код для входа.<br />
               Сохранится корзина и история заказов.
             </p>
+
+            {GOOGLE_CLIENT_ID && (
+              <>
+                <GoogleButton onLogin={onGoogleLogin} />
+                <div className="login-divider"><span>или</span></div>
+              </>
+            )}
 
             <div className="login-field">
               <label className="login-label">Email</label>

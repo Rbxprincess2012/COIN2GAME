@@ -851,6 +851,21 @@ button {
   color: #f87171;
 }
 
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(232,236,255,0.25);
+  font-size: 0.8rem;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
 .login-resend {
   background: none;
   border: none;

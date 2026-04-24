@@ -15,6 +15,7 @@ dotenv.config()
 
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import nodemailer from 'nodemailer'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -194,11 +195,69 @@ app.get('/api/groups', async (req, res) => {
   }
 })
 
-app.post('/api/auth/send-code', (req, res) => {
+// In-memory code store: { email → { code, expires } }
+const codeSessions = new Map()
+
+function getMailTransport() {
+  const user = process.env.YANDEX_EMAIL
+  const pass = process.env.YANDEX_APP_PASSWORD
+  if (!user || !pass) return null
+  return nodemailer.createTransport({
+    host: 'smtp.yandex.ru',
+    port: 465,
+    secure: true,
+    auth: { user, pass },
+  })
+}
+
+app.post('/api/auth/send-code', async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email is required' })
-  const code = Math.floor(1000 + Math.random() * 9000)
-  return res.json({ email, code, message: 'Код отправлен на почту' })
+
+  const code = String(Math.floor(1000 + Math.random() * 9000))
+  codeSessions.set(email.toLowerCase(), { code, expires: Date.now() + 10 * 60 * 1000 })
+
+  const transport = getMailTransport()
+  if (transport) {
+    try {
+      await transport.sendMail({
+        from: `"COIN2GAME" <${process.env.YANDEX_EMAIL}>`,
+        to: email,
+        subject: `Ваш код входа: ${code}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:400px;margin:0 auto">
+            <h2 style="color:#865fff">COIN2GAME</h2>
+            <p>Ваш код для входа:</p>
+            <div style="font-size:48px;font-weight:700;letter-spacing:12px;color:#1a1a2e;background:#f5f5ff;padding:20px;border-radius:12px;text-align:center">${code}</div>
+            <p style="color:#888;font-size:13px;margin-top:16px">Код действителен 10 минут. Не передавайте его никому.</p>
+          </div>`,
+      })
+      return res.json({ ok: true })
+    } catch (e) {
+      console.error('[mail] send error:', e.message)
+      return res.status(500).json({ error: 'Не удалось отправить письмо' })
+    }
+  }
+
+  // Fallback: dev mode — return code in response
+  console.log(`[auth] DEV code for ${email}: ${code}`)
+  return res.json({ ok: true, code })
+})
+
+app.post('/api/auth/verify-code', (req, res) => {
+  const { email, code } = req.body
+  if (!email || !code) return res.status(400).json({ error: 'email and code required' })
+
+  const session = codeSessions.get(email.toLowerCase())
+  if (!session) return res.status(400).json({ error: 'Код не найден или истёк' })
+  if (Date.now() > session.expires) {
+    codeSessions.delete(email.toLowerCase())
+    return res.status(400).json({ error: 'Код истёк, запросите новый' })
+  }
+  if (session.code !== String(code)) return res.status(400).json({ error: 'Неверный код' })
+
+  codeSessions.delete(email.toLowerCase())
+  return res.json({ ok: true, email })
 })
 
 // ── ForeignPay API proxy ─────────────────────────────────────────────────────
