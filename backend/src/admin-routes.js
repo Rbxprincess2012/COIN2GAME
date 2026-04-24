@@ -515,6 +515,21 @@ router.post('/wb/sync-prices', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+router.post('/wb/reset-nmids', async (req, res) => {
+  try {
+    const { group } = req.body
+    if (group) {
+      await pool.query(`UPDATE products SET wb_nmid=NULL, wb_article=NULL WHERE group_name=$1`, [group])
+    } else {
+      await pool.query(`UPDATE products SET wb_nmid=NULL, wb_article=NULL`)
+    }
+    const cnt = await pool.query(`SELECT COUNT(*) FROM products WHERE wb_nmid IS NOT NULL`)
+    res.json({ ok: true, remaining: parseInt(cnt.rows[0].count) })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── WB: push product cards (Content API) ─────────────────────────────────────
 
 const WB_CONTENT = 'https://content-api.wildberries.ru/content/v2'

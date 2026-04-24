@@ -204,12 +204,24 @@ export default function WildberriesPage() {
       <div className="a-card">
         <h3 className="a-card-title" style={{ marginBottom: 8 }}>Цены на Wildberries</h3>
         <p className="a-muted" style={{ fontSize: '0.82rem', marginBottom: 12 }}>
-          Цены рассчитываются по той же формуле что и на сайте (себестоимость × наценка ÷ (1 − комиссия WB − налог)).
-          Обновляются автоматически каждый час вместе с синхронизацией FP.
+          Загружает цены для товаров у которых есть nmID в БД.
+          Запускайте вручную после создания карточек.
         </p>
-        <button className="a-btn a-btn--primary a-btn--sm" onClick={handleSyncPrices} disabled={syncingPrices}>
-          {syncingPrices ? 'Загружаем цены...' : '↑ Загрузить цены на WB сейчас'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="a-btn a-btn--primary a-btn--sm" onClick={handleSyncPrices} disabled={syncingPrices}>
+            {syncingPrices ? 'Загружаем цены...' : '↑ Загрузить цены на WB'}
+          </button>
+          <button
+            className="a-btn a-btn--danger a-btn--sm"
+            onClick={async () => {
+              if (!confirm('Сбросить все nmID в БД? Это удалит связь с WB-карточками.')) return
+              const r = await adminApi.resetWbNmids()
+              alert(`Сброшено. Осталось nmID: ${r.remaining}`)
+            }}
+          >
+            ✕ Сбросить все nmID
+          </button>
+        </div>
       </div>
 
       {/* Категории и комиссии */}

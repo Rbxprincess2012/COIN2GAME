@@ -64,6 +64,7 @@ export const adminApi = {
   syncWbArticles: () => req('POST', '/wb/sync-articles'),
   syncWbPrices: () => req('POST', '/wb/sync-prices'),
   pushWbGroupCards: (group, token_key) => req('POST', '/wb/push-group-cards', { group, token_key }),
+  resetWbNmids: (group) => req('POST', '/wb/reset-nmids', group ? { group } : {}),
   downloadWbTemplate: async () => {
     const res = await fetch(`${API_BASE}/api/admin/wb/export-template`, {
       headers: { Authorization: `Bearer ${getToken()}` },

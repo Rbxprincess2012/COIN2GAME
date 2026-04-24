@@ -492,13 +492,8 @@ cron.schedule('0 * * * *', async () => {
   } catch (e) {
     console.error('[cron] FP sync failed:', e.message)
   }
-  console.log('[cron] WB prices push starting...')
-  try {
-    const r = await syncWbPrices()
-    console.log(`[cron] WB prices OK: pushed=${r.pushed} errors=${r.errors}`)
-  } catch (e) {
-    console.error('[cron] WB prices push failed:', e.message)
-  }
+  // WB price push disabled in cron — run manually from admin when needed
+  // console.log('[cron] WB prices push starting...')
 })
 
 // Ежедневно в 03:15 обновляем комиссии WB
