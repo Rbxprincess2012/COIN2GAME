@@ -207,7 +207,31 @@ function getMailTransport() {
     port: 465,
     secure: true,
     auth: { user, pass },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
   })
+}
+
+async function sendCodeEmail(email, code) {
+  const transport = getMailTransport()
+  if (!transport) { console.log(`[auth] DEV code for ${email}: ${code}`); return }
+  try {
+    await transport.sendMail({
+      from: `"COIN2GAME" <${process.env.YANDEX_EMAIL}>`,
+      to: email,
+      subject: `Ваш код входа: ${code}`,
+      html: `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;background:#f5f5ff;padding:32px;border-radius:16px">
+        <h2 style="color:#865fff;margin:0 0 16px">COIN2GAME</h2>
+        <p style="color:#444;margin:0 0 20px">Ваш код для входа:</p>
+        <div style="font-size:48px;font-weight:800;letter-spacing:16px;color:#1a0a2e;background:#fff;padding:20px;border-radius:12px;text-align:center;border:2px solid #865fff">${code}</div>
+        <p style="color:#888;font-size:13px;margin-top:16px">Код действителен 10 минут.</p>
+      </div>`,
+    })
+    console.log(`[mail] code sent to ${email}`)
+  } catch (e) {
+    console.error('[mail] send error:', e.message)
+  }
 }
 
 app.post('/api/auth/send-code', async (req, res) => {
@@ -217,31 +241,12 @@ app.post('/api/auth/send-code', async (req, res) => {
   const code = String(Math.floor(1000 + Math.random() * 9000))
   codeSessions.set(email.toLowerCase(), { code, expires: Date.now() + 10 * 60 * 1000 })
 
-  const transport = getMailTransport()
-  if (transport) {
-    try {
-      await transport.sendMail({
-        from: `"COIN2GAME" <${process.env.YANDEX_EMAIL}>`,
-        to: email,
-        subject: `Ваш код входа: ${code}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:400px;margin:0 auto">
-            <h2 style="color:#865fff">COIN2GAME</h2>
-            <p>Ваш код для входа:</p>
-            <div style="font-size:48px;font-weight:700;letter-spacing:12px;color:#1a1a2e;background:#f5f5ff;padding:20px;border-radius:12px;text-align:center">${code}</div>
-            <p style="color:#888;font-size:13px;margin-top:16px">Код действителен 10 минут. Не передавайте его никому.</p>
-          </div>`,
-      })
-      return res.json({ ok: true })
-    } catch (e) {
-      console.error('[mail] send error:', e.message)
-      return res.status(500).json({ error: 'Не удалось отправить письмо' })
-    }
-  }
+  // Отвечаем сразу — не ждём отправки письма
+  const isDev = !process.env.YANDEX_EMAIL
+  res.json({ ok: true, ...(isDev ? { code } : {}) })
 
-  // Fallback: dev mode — return code in response
-  console.log(`[auth] DEV code for ${email}: ${code}`)
-  return res.json({ ok: true, code })
+  // Отправляем письмо в фоне
+  sendCodeEmail(email, code)
 })
 
 app.post('/api/auth/verify-code', (req, res) => {
