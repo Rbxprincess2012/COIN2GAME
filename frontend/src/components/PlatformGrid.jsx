@@ -41,7 +41,10 @@ function GroupTile({ g, idx, onSelectService }) {
       style={{ background: cfg.bg }}
       onClick={() => onSelectService(g.group)}
     >
-      {cfg.logo && <MaskLogo src={cfg.logo} color={cfg.accent} size={44} />}
+      {cfg.logo
+        ? <MaskLogo src={cfg.logo} color={cfg.accent} size={44} />
+        : <div style={{ width: 44, height: 44, flexShrink: 0 }} />
+      }
       <div className="platform-tile-info">
         <span className="platform-tile-name" style={{ color: cfg.accent }}>
           {cfg.label || g.group}
