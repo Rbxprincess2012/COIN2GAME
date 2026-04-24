@@ -223,6 +223,7 @@ function App() {
     <div className="app-shell">
       <Header
         onLogin={() => setLoginVisible(true)}
+        onLogout={() => { setIsLoggedIn(false); setUserEmail(''); setCart([]) }}
         onCartOpen={() => setShowCart(true)}
         cartCount={cartCount}
         isLoggedIn={isLoggedIn}

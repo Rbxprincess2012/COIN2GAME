@@ -186,6 +186,42 @@ button {
   box-shadow: 0 0 6px #2ecc71;
 }
 
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: #0d1e35;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  z-index: 200;
+}
+
+.user-dropdown-email {
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  color: rgba(232,236,255,0.45);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  word-break: break-all;
+}
+
+.user-dropdown-logout {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #f87171;
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.user-dropdown-logout:hover { background: rgba(248,113,113,0.08); }
+
 .cart-badge {
   position: absolute;
   top: -6px;

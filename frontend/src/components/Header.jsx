@@ -25,7 +25,39 @@ function Logo() {
   )
 }
 
-function Header({ onLogin, onCartOpen, cartCount, isLoggedIn, userEmail, onLogoClick }) {
+import { useEffect, useRef, useState } from 'react'
+
+function UserMenu({ userEmail, onLogout }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button className="btn-user-logged" onClick={() => setOpen(v => !v)}>
+        <span className="btn-user-dot" />
+        {userEmail.split('@')[0]}
+        <span style={{ fontSize: '0.6rem', opacity: 0.6, marginLeft: 2 }}>▾</span>
+      </button>
+
+      {open && (
+        <div className="user-dropdown">
+          <div className="user-dropdown-email">{userEmail}</div>
+          <button className="user-dropdown-logout" onClick={() => { setOpen(false); onLogout() }}>
+            Выйти
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Header({ onLogin, onLogout, onCartOpen, cartCount, isLoggedIn, userEmail, onLogoClick }) {
   return (
     <header className="site-header">
       <div className="header-left">
@@ -53,14 +85,10 @@ function Header({ onLogin, onCartOpen, cartCount, isLoggedIn, userEmail, onLogoC
             </svg>
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
           </button>
-          {isLoggedIn ? (
-            <button className="btn-user-logged" onClick={onLogin}>
-              <span className="btn-user-dot" />
-              {userEmail.split('@')[0]}
-            </button>
-          ) : (
-            <button className="btn-primary btn-sm" onClick={onLogin}>Войти</button>
-          )}
+          {isLoggedIn
+            ? <UserMenu userEmail={userEmail} onLogout={onLogout} />
+            : <button className="btn-primary btn-sm" onClick={onLogin}>Войти</button>
+          }
         </div>
       </div>
     </header>
