@@ -4,6 +4,8 @@ import './index.css'
 
 const isAdmin = window.location.pathname.startsWith('/admin')
 
+document.title = isAdmin ? 'COIN2GAME Admin' : 'COIN2GAME — игровые пополнения'
+
 async function mount() {
   const root = ReactDOM.createRoot(document.getElementById('root'))
   if (isAdmin) {
