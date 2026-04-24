@@ -1,4 +1,4 @@
-// Блок для диагностики — пишет в лог сразу после запуска
+// v2 — nodemailer + Yandex SMTP
 console.log("=== ДИАГНОСТИКА: ПРИЛОЖЕНИЕ ЗАПУСКАЕТСЯ ===");
 console.log("Текущая директория:", process.cwd());
 console.log("PORT из окружения:", process.env.PORT);
