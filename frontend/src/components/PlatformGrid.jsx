@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { SERVICE_CONFIG, colorFilter } from '../config/services'
+import { SERVICE_CONFIG } from '../config/services'
 
-const FALLBACK_ACCENTS = ['#66c0f4','#ff4655','#52b043','#f2a900','#44d62c','#a2aaad','#c8a95a','#0070d1','#ff4444']
+const FALLBACK_ACCENTS = ['#66c0f4','#a855f7','#52b043','#f59e0b','#44d62c','#a2aaad','#c8a95a','#0070d1','#f87171']
 
 function getGroupCfg(groupName, idx) {
   const cfg = SERVICE_CONFIG[groupName]
@@ -9,29 +9,39 @@ function getGroupCfg(groupName, idx) {
   return {
     accent: FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length],
     bg: 'linear-gradient(135deg, #0d1824 0%, #1b2838 100%)',
-    image: null,
     label: groupName,
   }
 }
 
+function MaskLogo({ src, color, size = 44 }) {
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      flexShrink: 0,
+      backgroundColor: color,
+      WebkitMaskImage: `url(${src})`,
+      maskImage: `url(${src})`,
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain',
+      maskSize: 'contain',
+      WebkitMaskPosition: 'center',
+      maskPosition: 'center',
+      filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))',
+    }} />
+  )
+}
+
 function GroupTile({ g, idx, onSelectService }) {
   const cfg = getGroupCfg(g.group, idx)
-  const logoSrc = cfg.logo || null
   return (
     <button
       className="platform-tile"
       style={{ background: cfg.bg }}
       onClick={() => onSelectService(g.group)}
     >
-      {logoSrc && (
-        <img
-          src={logoSrc}
-          alt=""
-          className="platform-tile-logo"
-          style={{ filter: colorFilter(cfg.accent.replace('#', '')) }}
-          onError={e => { e.target.style.display = 'none' }}
-        />
-      )}
+      {cfg.logo && <MaskLogo src={cfg.logo} color={cfg.accent} size={44} />}
       <div className="platform-tile-info">
         <span className="platform-tile-name" style={{ color: cfg.accent }}>
           {cfg.label || g.group}
@@ -47,12 +57,8 @@ function PlatformGrid({ onSelectService, searchQuery = '', groups = [] }) {
   const [showOthers, setShowOthers] = useState(false)
 
   const q = searchQuery.trim().toLowerCase()
-
   const hasFeatured = groups.some(g => g.featured)
-
   const filtered = groups.filter(g => !q || g.group.toLowerCase().includes(q))
-
-  // When searching, show everything; otherwise split featured/others
   const mainGroups  = q || !hasFeatured ? filtered : filtered.filter(g => g.featured)
   const otherGroups = q || !hasFeatured ? []        : filtered.filter(g => !g.featured)
 
@@ -74,10 +80,7 @@ function PlatformGrid({ onSelectService, searchQuery = '', groups = [] }) {
   return (
     <section className="platform-grid-section">
       <div className="section-header">
-        <div>
-          <p className="eyebrow">Платформы</p>
-          <h2>Выберите сервис</h2>
-        </div>
+        <div><p className="eyebrow">Платформы</p><h2>Выберите сервис</h2></div>
       </div>
 
       <div className="platform-grid">
@@ -92,14 +95,10 @@ function PlatformGrid({ onSelectService, searchQuery = '', groups = [] }) {
       {otherGroups.length > 0 && (
         <>
           <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 4px' }}>
-            <button
-              className="platform-more-btn"
-              onClick={() => setShowOthers(v => !v)}
-            >
+            <button className="platform-more-btn" onClick={() => setShowOthers(v => !v)}>
               <span>{showOthers ? '↑ Свернуть' : `Все категории (${otherGroups.length} ещё)`}</span>
             </button>
           </div>
-
           {showOthers && (
             <div className="platform-grid" style={{ marginTop: 12 }}>
               {otherGroups.map((g, idx) => (

@@ -1,29 +1,6 @@
 const SI = 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons'
 const logo = slug => `${SI}/${slug}.svg`
 
-// Converts black SVG → brand color via CSS filter
-export function colorFilter(hex) {
-  const r = parseInt(hex.slice(0, 2), 16)
-  const g = parseInt(hex.slice(2, 4), 16)
-  const b = parseInt(hex.slice(4, 6), 16)
-  const rn = r / 255, gn = g / 255, bn = b / 255
-  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn)
-  let h = 0, s = 0, l = (max + min) / 2
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6
-    else if (max === gn) h = ((bn - rn) / d + 2) / 6
-    else h = ((rn - gn) / d + 4) / 6
-  }
-  const hDeg = Math.round(h * 360)
-  const sPct = Math.round(s * 100)
-  const lPct = Math.round(l * 100)
-  const brt = Math.min(200, Math.round(lPct * 2.2 + 10))
-  const sat = Math.min(1000, Math.round(sPct * 10 + 200))
-  return `brightness(0) saturate(100%) invert(1) sepia(1) saturate(${sat}%) hue-rotate(${hDeg}deg) brightness(${brt}%)`
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Цветовая палитра: тёмный игровой стиль.
 // Акценты — приглушённые, не кричащие. Красный только тёмный (бордо/вишня).
@@ -564,13 +541,13 @@ export const SERVICE_CONFIG = {
   },
   'Claude': {
     logo: logo('claude'),
-    accent: '#c86840',
+    accent: '#D97757',
     bg: 'linear-gradient(135deg, #180c06 0%, #281810 100%)',
   },
   'Claude Gift': {
     label: 'Claude Gift',
     logo: logo('claude'),
-    accent: '#c86840',
+    accent: '#D97757',
     bg: 'linear-gradient(135deg, #180c06 0%, #281810 100%)',
   },
   'Midjourney': {

@@ -34,13 +34,14 @@ function DescriptionBlock({ text }) {
   )
 }
 
-import { SERVICE_CONFIG, colorFilter } from '../config/services.js'
+import { SERVICE_CONFIG } from '../config/services.js'
 
 function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, isLoggedIn }) {
   if (!product) return null
 
   const cfg = SERVICE_CONFIG[product.platform] || SERVICE_CONFIG[product.service] || null
   const logo = cfg?.logo || null
+  const accent = cfg?.accent || '#865fff'
 
   return (
     <section className="details-page">
@@ -60,13 +61,21 @@ function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, i
             <h2>{product.title}</h2>
             <div className="details-price-col">
               {logo && (
-                <img
-                  src={logo}
-                  alt=""
-                  className="details-service-logo"
-                  style={{ filter: colorFilter(cfg.accent.replace('#', '')) }}
-                  onError={e => { e.target.style.display = 'none' }}
-                />
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  flexShrink: 0,
+                  backgroundColor: accent,
+                  WebkitMaskImage: `url(${logo})`,
+                  maskImage: `url(${logo})`,
+                  WebkitMaskRepeat: 'no-repeat',
+                  maskRepeat: 'no-repeat',
+                  WebkitMaskSize: 'contain',
+                  maskSize: 'contain',
+                  WebkitMaskPosition: 'center',
+                  maskPosition: 'center',
+                  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
+                }} />
               )}
               <div className="details-price-badge">
                 ₽{product.price.toLocaleString('ru-RU')}
