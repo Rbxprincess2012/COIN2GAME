@@ -482,11 +482,11 @@ export async function syncWbPrices() {
   let pushed = 0
   let errors = 0
 
-  // WB limit: 10 req / 6 sec. Max batch: 3000 nmIDs.
-  // We use batches of 1000 with 700ms pause between — well within limits.
+  // WB Prices API: 10 req/6s, max 3000 nmIDs per batch.
+  // On 429 → read X-Ratelimit-Retry and wait exactly that many seconds.
   const delay = (ms) => new Promise(r => setTimeout(r, ms))
   const BATCH_SIZE = 1000
-  const BATCH_DELAY_MS = 700
+  const BATCH_DELAY_MS = 700  // 700ms between batches → ~1.4 req/s, within 10/6s limit
 
   let firstBatch = true
   for (const [token, items] of Object.entries(byToken)) {
@@ -500,6 +500,13 @@ export async function syncWbPrices() {
         headers: { Authorization: token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: batch }),
       })
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get('X-Ratelimit-Retry') || '60')
+        console.log(`[WB prices] 429 — waiting ${retryAfter}s`)
+        await delay(retryAfter * 1000)
+        errors += batch.length  // count as error, will retry next manual run
+        continue
+      }
       const data = await res.json()
       if (res.ok && !data.error) pushed += batch.length
       else errors += batch.length
@@ -609,17 +616,33 @@ router.post('/wb/push-group-cards', async (req, res) => {
       }
     })
 
-    // Upload in batches of 50 (WB limit)
+    // WB Content API limits: /cards/upload — 10 req/min → 6s between batches
+    // On 429 — read X-Ratelimit-Retry header and wait exactly that many seconds
+    const delay = ms => new Promise(r => setTimeout(r, ms))
+
+    async function wbFetch(url, opts) {
+      const r = await fetch(url, opts)
+      if (r.status === 429) {
+        const retryAfter = parseInt(r.headers.get('X-Ratelimit-Retry') || '60')
+        console.log(`[WB] 429 — waiting ${retryAfter}s (X-Ratelimit-Retry)`)
+        await delay(retryAfter * 1000)
+        return fetch(url, opts)  // one retry
+      }
+      return r
+    }
+
+    // Upload in batches of 10 (safe for 10 req/min Content API limit)
     let created = 0
     let errors = 0
-    const delay = ms => new Promise(r => setTimeout(r, ms))
     const createdVendorCodes = []
+    const BATCH = 10
+    const BATCH_DELAY = 6100  // 6.1s → safely under 10 req/min
 
-    for (let i = 0; i < cards.length; i += 50) {
-      const batch = cards.slice(i, i + 50)
-      if (i > 0) await delay(700)
+    for (let i = 0; i < cards.length; i += BATCH) {
+      const batch = cards.slice(i, i + BATCH)
+      if (i > 0) await delay(BATCH_DELAY)
 
-      const r = await fetch(`${WB_CONTENT}/cards/upload`, {
+      const r = await wbFetch(`${WB_CONTENT}/cards/upload`, {
         method: 'POST',
         headers: { Authorization: token, 'Content-Type': 'application/json' },
         body: JSON.stringify(batch),
@@ -627,35 +650,32 @@ router.post('/wb/push-group-cards', async (req, res) => {
       const data = await r.json()
       if (!r.ok || data.error) {
         errors += batch.length
-        console.error('[WB push-cards] batch error:', data)
+        console.error('[WB push-cards] batch error:', JSON.stringify(data))
       } else {
         created += batch.length
         createdVendorCodes.push(...batch.map(c => c.variants[0].vendorCode))
       }
     }
 
-    // Wait for WB to process, then fetch nmIDs and save to DB
+    // Wait for WB to process cards, then fetch nmIDs
     if (createdVendorCodes.length > 0) {
-      await delay(5000)
+      await delay(15000)  // WB creates cards asynchronously
       let matched = 0
-      for (let i = 0; i < createdVendorCodes.length; i += 100) {
-        await delay(300)
-        const chunk = createdVendorCodes.slice(i, i + 100)
-        const r = await fetch(`${WB_CONTENT}/get/cards/list`, {
-          method: 'POST',
-          headers: { Authorization: token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ settings: { cursor: { limit: 100 }, filter: { withPhoto: -1 } } }),
-        })
-        const data = await r.json()
-        for (const card of (data?.data?.cards || [])) {
-          if (chunk.includes(card.vendorCode)) {
-            const productId = card.vendorCode.replace(`${vendorPrefix}-`, '')
-            await pool.query(
-              `UPDATE products SET wb_nmid=$1, wb_article=$2, updated_at=NOW() WHERE product_id=$3`,
-              [card.nmID, card.vendorCode, productId]
-            )
-            matched++
-          }
+      // Content GET is 100 req/min — 1 request here is fine
+      const r = await wbFetch(`${WB_CONTENT}/get/cards/list`, {
+        method: 'POST',
+        headers: { Authorization: token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { cursor: { limit: 1000 }, filter: { withPhoto: -1 } } }),
+      })
+      const data = await r.json()
+      for (const card of (data?.data?.cards || [])) {
+        if (createdVendorCodes.includes(card.vendorCode)) {
+          const productId = card.vendorCode.replace(`${vendorPrefix}-`, '')
+          await pool.query(
+            `UPDATE products SET wb_nmid=$1, wb_article=$2, updated_at=NOW() WHERE product_id=$3`,
+            [card.nmID, card.vendorCode, productId]
+          )
+          matched++
         }
       }
       await log('WB_CARDS_PUSH', null, null, { group, token_key, created, errors, nmids_saved: matched })
