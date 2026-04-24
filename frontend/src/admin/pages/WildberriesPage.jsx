@@ -17,8 +17,12 @@ export default function WildberriesPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncingArticles, setSyncingArticles] = useState(false)
   const [syncingPrices, setSyncingPrices] = useState(false)
+  const [pushingCards, setPushingCards] = useState(false)
   const [articlesSyncResult, setArticlesSyncResult] = useState(null)
   const [pricesSyncResult, setPricesSyncResult] = useState(null)
+  const [cardsResult, setCardsResult] = useState(null)
+  const [pushGroup, setPushGroup] = useState('APPLE ID')
+  const [pushTokenKey, setPushTokenKey] = useState('tatyana')
   const [syncError, setSyncError] = useState('')
   const [exportingTemplate, setExportingTemplate] = useState(false)
   const [commissions, setCommissions] = useState([])
@@ -62,6 +66,20 @@ export default function WildberriesPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+  }
+
+  async function handlePushCards() {
+    setPushingCards(true)
+    setSyncError('')
+    setCardsResult(null)
+    try {
+      const res = await adminApi.pushWbGroupCards(pushGroup, pushTokenKey)
+      if (res.error) throw new Error(res.error)
+      setCardsResult(res)
+    } catch (e) {
+      setSyncError(e.message)
+    }
+    setPushingCards(false)
   }
 
   async function handleSyncPrices() {
@@ -134,12 +152,54 @@ export default function WildberriesPage() {
 
       {saved && <div className="a-alert a-alert--success">Настройки сохранены</div>}
       {syncError && <div className="a-alert a-alert--error">{syncError}</div>}
+      {cardsResult && (
+        <div className="a-alert a-alert--success">
+          Карточки созданы: {cardsResult.created} из {cardsResult.total}
+          {cardsResult.nmids_saved > 0 && ` · nmID сохранено: ${cardsResult.nmids_saved}`}
+          {cardsResult.errors > 0 && ` · ошибок: ${cardsResult.errors}`}
+        </div>
+      )}
       {pricesSyncResult && (
         <div className="a-alert a-alert--success">
           Цены на WB обновлены: загружено {pricesSyncResult.pushed} из {pricesSyncResult.total}
           {pricesSyncResult.errors > 0 && ` · ошибок: ${pricesSyncResult.errors}`}
         </div>
       )}
+
+      {/* Создание карточек */}
+      <div className="a-card">
+        <h3 className="a-card-title" style={{ marginBottom: 8 }}>Создать карточки товаров на WB</h3>
+        <p className="a-muted" style={{ fontSize: '0.82rem', marginBottom: 14 }}>
+          Создаёт карточки в категории «Подписки игровых сервисов» для выбранной группы.
+          Артикул продавца: <code style={{ color: '#c4acff' }}>CG-&#123;product_id&#125;</code>.
+          После создания nmID сохраняется в БД и цены начинают обновляться автоматически.
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            className="a-col-filter"
+            style={{ flex: '1 1 180px', maxWidth: 240 }}
+            placeholder="Группа (напр. APPLE ID)"
+            value={pushGroup}
+            onChange={e => setPushGroup(e.target.value)}
+          />
+          <select
+            className="a-col-filter"
+            style={{ minWidth: 130 }}
+            value={pushTokenKey}
+            onChange={e => setPushTokenKey(e.target.value)}
+          >
+            <option value="tatyana">Татьяна</option>
+            <option value="marina">Марина</option>
+          </select>
+          <button
+            className="a-btn a-btn--primary a-btn--sm"
+            onClick={handlePushCards}
+            disabled={pushingCards}
+          >
+            {pushingCards ? 'Создаём карточки...' : '↑ Создать карточки на WB'}
+          </button>
+        </div>
+      </div>
 
       <div className="a-card">
         <h3 className="a-card-title" style={{ marginBottom: 8 }}>Цены на Wildberries</h3>

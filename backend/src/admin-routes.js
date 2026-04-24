@@ -515,6 +515,145 @@ router.post('/wb/sync-prices', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+// ── WB: push product cards (Content API) ─────────────────────────────────────
+
+const WB_CONTENT = 'https://content-api.wildberries.ru/content/v2'
+const WB_SUBJECT_GAMING = 8214  // Подписки игровых сервисов
+
+// Maps product name → local image filename in /media/apple/
+function appleImageFile(name) {
+  const n = name.toUpperCase()
+
+  if (n.includes('RUB') || n.includes('РОССИЯ') || n.includes('RUSSIA')) {
+    for (const amt of [1500, 2000, 2500, 3000, 5000]) {
+      if (n.includes(String(amt))) return `APPLE ID Россия РФ RUB ${amt} рублей.jpg`
+    }
+    return 'APPLE ID Россия РФ RUB 2000 рублей.jpg'
+  }
+  if (n.includes('USD') || n.includes('USA')) {
+    for (const amt of [4,5,6,7,8,10,15,20,25,30,40,50,60,70,75,80,90,100,150,200,250,300,400,500]) {
+      if (new RegExp(`\\b${amt}\\b`).test(name)) return `APPLE ID ${amt} долларов США USD USA.jpg`
+    }
+    return 'APPLE ID 10 долларов США USD USA.jpg'
+  }
+  if (n.includes('AED')) return 'APPLE ID 100 AED ОАЭ.jpg'
+  if (n.includes('PLN')) return 'APPLE ID 100 PLN Польша.jpg'
+  return 'Apple 2.png'
+}
+
+router.post('/wb/push-group-cards', async (req, res) => {
+  try {
+    const { group, token_key = 'tatyana' } = req.body
+    if (!group) return res.status(400).json({ error: 'group required' })
+
+    // Get token
+    const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wb_marina_token','wb_tatyana_token','wb_commission','markup_global','active_entrepreneur')`)
+    const s = {}
+    for (const row of sRes.rows) { try { s[row.key] = JSON.parse(row.value) } catch { s[row.key] = row.value } }
+
+    const token = token_key === 'marina' ? s['wb_marina_token'] : s['wb_tatyana_token']
+    if (!token) return res.status(400).json({ error: `Токен ${token_key} не найден` })
+
+    // Get products for the group
+    const pRes = await pool.query(`
+      SELECT product_id, name, description, region, price, price_wb, markup, group_name
+      FROM products
+      WHERE group_name = $1 AND in_stock = true AND (paused IS NULL OR paused = false)
+      ORDER BY name
+    `, [group])
+
+    if (pRes.rows.length === 0) return res.json({ ok: true, created: 0, errors: 0, message: 'Товаров не найдено' })
+
+    // Get backend public URL
+    const backendUrl = process.env.BACKEND_URL || 'https://rbxprincess2012-coin2game-24d0.twc1.net'
+
+    // Determine image folder by group
+    const imgFolder = group === 'APPLE ID' ? 'apple' : group.toLowerCase().replace(/\s+/g, '_')
+
+    // Build cards payload
+    const vendorPrefix = 'CG'
+    const cards = pRes.rows.map(p => {
+      const imgFile = group === 'APPLE ID' ? appleImageFile(p.name) : 'Apple 2.png'
+      const photoUrl = `${backendUrl}/media/${imgFolder}/${encodeURIComponent(imgFile)}`
+      const vendorCode = `${vendorPrefix}-${p.product_id}`
+
+      return {
+        subjectID: WB_SUBJECT_GAMING,
+        variants: [{
+          vendorCode,
+          title: p.name,
+          description: p.description || p.name,
+          brand: group === 'APPLE ID' ? 'Apple' : group,
+          photos: [photoUrl],
+          characteristics: [
+            { id: 249347, value: [p.region || 'Весь мир'] },    // Территория активации
+            { id: 15001169, value: [group] },                    // Вид игрового сервиса
+          ],
+          sizes: [{ wbSize: '', techSize: '0', skus: [] }],
+        }],
+      }
+    })
+
+    // Upload in batches of 50 (WB limit)
+    let created = 0
+    let errors = 0
+    const delay = ms => new Promise(r => setTimeout(r, ms))
+    const createdVendorCodes = []
+
+    for (let i = 0; i < cards.length; i += 50) {
+      const batch = cards.slice(i, i + 50)
+      if (i > 0) await delay(700)
+
+      const r = await fetch(`${WB_CONTENT}/cards/upload`, {
+        method: 'POST',
+        headers: { Authorization: token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch),
+      })
+      const data = await r.json()
+      if (!r.ok || data.error) {
+        errors += batch.length
+        console.error('[WB push-cards] batch error:', data)
+      } else {
+        created += batch.length
+        createdVendorCodes.push(...batch.map(c => c.variants[0].vendorCode))
+      }
+    }
+
+    // Wait for WB to process, then fetch nmIDs and save to DB
+    if (createdVendorCodes.length > 0) {
+      await delay(5000)
+      let matched = 0
+      for (let i = 0; i < createdVendorCodes.length; i += 100) {
+        await delay(300)
+        const chunk = createdVendorCodes.slice(i, i + 100)
+        const r = await fetch(`${WB_CONTENT}/get/cards/list`, {
+          method: 'POST',
+          headers: { Authorization: token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: { cursor: { limit: 100 }, filter: { withPhoto: -1 } } }),
+        })
+        const data = await r.json()
+        for (const card of (data?.data?.cards || [])) {
+          if (chunk.includes(card.vendorCode)) {
+            const productId = card.vendorCode.replace(`${vendorPrefix}-`, '')
+            await pool.query(
+              `UPDATE products SET wb_nmid=$1, wb_article=$2, updated_at=NOW() WHERE product_id=$3`,
+              [card.nmID, card.vendorCode, productId]
+            )
+            matched++
+          }
+        }
+      }
+      await log('WB_CARDS_PUSH', null, null, { group, token_key, created, errors, nmids_saved: matched })
+      return res.json({ ok: true, created, errors, nmids_saved: matched, total: pRes.rows.length })
+    }
+
+    return res.json({ ok: true, created, errors, total: pRes.rows.length })
+  } catch (e) {
+    console.error('[WB push-cards]', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Logs ─────────────────────────────────────────────────────────────────────
 
 router.get('/logs', async (req, res) => {

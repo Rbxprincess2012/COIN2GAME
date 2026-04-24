@@ -13,9 +13,17 @@ import adminRoutes, { syncWbCommissions, syncWbArticles, syncProducts, syncGames
 
 dotenv.config()
 
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
 const app = express()
 app.use(cors())
 app.use(express.json())
+
+// Static media files (product images for WB)
+app.use('/media', express.static(join(__dirname, '..', 'media')))
 
 app.use('/api/admin', adminRoutes)
 
