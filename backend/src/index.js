@@ -496,6 +496,81 @@ app.get('/api/config', async (req, res) => {
   }
 })
 
+function orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }) {
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:40px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
+
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#1a0a2e,#16213e);border-radius:20px 20px 0 0;padding:32px 40px;text-align:center">
+          <div style="font-size:22px;font-weight:800;letter-spacing:0.06em;color:#fff">
+            <span style="color:#f48f1b">COIN</span><span style="color:#865fff">2</span>GAME
+          </div>
+          <div style="margin-top:8px;font-size:13px;color:rgba(255,255,255,0.5);letter-spacing:0.08em;text-transform:uppercase">Цифровые товары</div>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="background:#fff;padding:40px 40px 32px">
+
+          <div style="font-size:20px;font-weight:700;color:#111;margin-bottom:6px">Ваш заказ готов 🎮</div>
+          <div style="font-size:14px;color:#888;margin-bottom:32px">Заказ №<strong style="color:#444">${orderNumber}</strong></div>
+
+          <!-- Product -->
+          <div style="background:#f8f9ff;border-radius:14px;padding:20px 24px;margin-bottom:24px">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:6px">Товар</div>
+            <div style="font-size:16px;font-weight:600;color:#222">${productName}</div>
+          </div>
+
+          <!-- Code -->
+          <div style="background:linear-gradient(135deg,#1a0a2e,#16213e);border-radius:14px;padding:24px;margin-bottom:24px;text-align:center">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.5);margin-bottom:12px">Код активации</div>
+            <div style="font-size:28px;font-weight:800;letter-spacing:0.15em;color:#f4c06a;font-family:monospace;word-break:break-all">${activationCode}</div>
+            <div style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4)">Скопируйте код и используйте при активации</div>
+          </div>
+
+          ${instructions ? `
+          <!-- Instructions -->
+          <div style="border-left:3px solid #865fff;padding:16px 20px;background:#faf9ff;border-radius:0 12px 12px 0;margin-bottom:24px">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#865fff;margin-bottom:8px;font-weight:600">Инструкция по активации</div>
+            <div style="font-size:14px;color:#444;line-height:1.7;white-space:pre-line">${instructions}</div>
+          </div>` : ''}
+
+          <div style="font-size:13px;color:#aaa;line-height:1.6">
+            Если возникли вопросы — напишите нам на <a href="mailto:info@coin2game.space" style="color:#865fff">info@coin2game.space</a>
+          </div>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#f4f6fb;border-radius:0 0 20px 20px;padding:20px 40px;text-align:center">
+          <div style="font-size:12px;color:#bbb">© 2025 COIN2GAME · Письмо отправлено на ${email}</div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
+async function sendOrderEmail({ email, orderNumber, productName, activationCode, instructions }) {
+  const transport = getMailTransport()
+  if (!transport) return
+  try {
+    await transport.sendMail({
+      from: `"COIN2GAME" <${process.env.YANDEX_EMAIL}>`,
+      to: email,
+      subject: `Заказ №${orderNumber} — ваш код активации`,
+      html: orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }),
+    })
+  } catch (e) {
+    console.error('[mail] order email failed:', e.message)
+  }
+}
+
 // POST /api/cp/complete — верификация CP-транзакции и доставка товара через FP deposit
 app.post('/api/cp/complete', async (req, res) => {
   try {
@@ -519,7 +594,16 @@ app.post('/api/cp/complete', async (req, res) => {
       }
     }
 
-    // Доставляем товар через ForeignPay deposit (с нашего баланса мерчанта)
+    // Генерируем номер заказа
+    const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
+    const orderNumber = `CG-${seqRes.rows[0].num}`
+
+    // Получаем название товара
+    const prodRes = await pool.query(`SELECT name, price FROM products WHERE product_id=$1`, [String(product_id)])
+    const productName = prodRes.rows[0]?.name || `Товар #${product_id}`
+    const price = prodRes.rows[0]?.price || null
+
+    // Доставляем товар через ForeignPay deposit
     const path = product_type === 'TOPUP' ? '/topup/deposit' : '/voucher/deposit'
     const request = {
       product_id: parseInt(product_id),
@@ -528,12 +612,28 @@ app.post('/api/cp/complete', async (req, res) => {
       ...(product_type === 'TOPUP' && topup_data ? topup_data : {}),
     }
     const data = await fpPost(FP_PROXY, { path, request })
-    // Increment sales counter (fire-and-forget)
-    pool.query(
-      `UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`,
-      [String(product_id)]
-    ).catch(() => {})
-    res.json(data)
+
+    // Извлекаем код активации из ответа FP
+    const activationCode = data?.code || data?.activation_code || data?.voucher_code
+      || data?.data?.code || data?.result?.code || null
+
+    // Сохраняем заказ в БД
+    await pool.query(
+      `INSERT INTO orders (order_number, email, product_id, product_name, product_type, activation_code, price, status, fp_response)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [orderNumber, email, String(product_id), productName, product_type,
+       activationCode, price, activationCode ? 'completed' : 'pending', JSON.stringify(data)]
+    ).catch(e => console.error('[orders] save failed:', e.message))
+
+    // Увеличиваем счётчик продаж
+    pool.query(`UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`, [String(product_id)]).catch(() => {})
+
+    // Отправляем письмо с кодом
+    if (activationCode && email) {
+      sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: null })
+    }
+
+    res.json({ ...data, order_number: orderNumber })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: e.message })

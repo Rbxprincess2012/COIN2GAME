@@ -77,6 +77,28 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0;
   `)
 
+  // Orders table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      order_number TEXT UNIQUE NOT NULL,
+      email TEXT NOT NULL,
+      product_id TEXT,
+      product_name TEXT,
+      product_type TEXT,
+      activation_code TEXT,
+      price NUMERIC(12,2),
+      status TEXT DEFAULT 'pending',
+      fp_response JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  // Order number sequence starting at 10001
+  await pool.query(`
+    CREATE SEQUENCE IF NOT EXISTS order_seq START 10001;
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
