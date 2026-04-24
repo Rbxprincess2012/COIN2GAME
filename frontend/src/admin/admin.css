@@ -397,12 +397,16 @@
 
 .a-table td {
   padding: 8px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: none;
   vertical-align: middle;
 }
 
-.a-table tr:last-child td { border-bottom: none; }
-.a-table tr:hover td { background: rgba(255,255,255,0.02); }
+.a-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.a-table tbody tr:last-child { border-bottom: none; }
+.a-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
 
 .a-loading { text-align: center; padding: 32px; color: #92a2d4; }
 .a-muted { color: #92a2d4; }
