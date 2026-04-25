@@ -502,23 +502,39 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
 
         {/* ── Paying (polling) ─────────────────────────────────────── */}
         {step === 'paying' && (
-          <div className="checkout-paying">
-            <div className="spinner" />
-            <h3>Ожидаем оплату</h3>
-            <p className="checkout-meta">{sbpData?.product}</p>
-            <p className="checkout-meta-sub">Оплата открыта в новой вкладке. Как только оплатите — код появится здесь автоматически.</p>
-            {sbpData?.sbp_url && (
-              <a href={sbpData.sbp_url} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                Открыть платёж снова
-              </a>
-            )}
-            {sbpData?.qr_url && (
-              <div className="sbp-qr">
-                <img src={sbpData.qr_url} alt="QR для оплаты" />
-                <p className="checkout-meta-sub">Или отсканируйте QR-код</p>
-              </div>
-            )}
-          </div>
+          <>
+            <div className="modal-header">
+              <h2>Ожидаем оплату</h2>
+              <button className="close-button" onClick={() => { stopPolling(); setStep('summary') }}>×</button>
+            </div>
+            <div className="checkout-body" style={{ alignItems: 'center', textAlign: 'center' }}>
+              <div className="spinner" />
+              <p className="checkout-meta" style={{ fontWeight: 600, fontSize: '1rem' }}>{currentItem?.title}</p>
+              <p className="checkout-meta-sub">
+                {sbpData?.sbp_url
+                  ? 'Оплата открыта в новой вкладке. Как только оплатите — код появится здесь автоматически.'
+                  : 'Завершите оплату в виджете. Код появится автоматически после подтверждения.'}
+              </p>
+              {sbpData?.sbp_url && (
+                <a href={sbpData.sbp_url} target="_blank" rel="noopener noreferrer" className="btn-secondary checkout-btn">
+                  Открыть платёж снова
+                </a>
+              )}
+              {sbpData?.qr_url && (
+                <div className="sbp-qr">
+                  <img src={sbpData.qr_url} alt="QR для оплаты" />
+                  <p className="checkout-meta-sub">Или отсканируйте QR-код</p>
+                </div>
+              )}
+              <button
+                className="btn-tertiary"
+                style={{ marginTop: 8, fontSize: '0.85rem' }}
+                onClick={() => { stopPolling(); setStep('summary') }}
+              >
+                ← Отменить и вернуться
+              </button>
+            </div>
+          </>
         )}
 
         {/* ── Done item ────────────────────────────────────────────── */}
