@@ -790,7 +790,11 @@ router.get('/wb/account-goods', async (req, res) => {
     const r = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=20&offset=0', {
       headers: { Authorization: token }
     })
-    const data = await r.json()
+    const rawText = await r.text()
+    let data
+    try { data = JSON.parse(rawText) } catch { return res.json({ wbStatus: r.status, rawPreview: rawText.slice(0, 300) }) }
+    if (!r.ok || data.error) return res.json({ wbStatus: r.status, wbError: data.error || data, rawPreview: rawText.slice(0, 300) })
+
     const goods = (data?.data?.listGoods || []).map(g => ({
       nmID: g.nmID, vendorCode: g.vendorCode, price: g.sizes?.[0]?.price, discount: g.discount
     }))
