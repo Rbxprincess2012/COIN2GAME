@@ -31,10 +31,13 @@ function UserMenu({ userEmail, onLogout }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef(null)
+  const dropRef = useRef(null)
 
   useEffect(() => {
     function handler(e) {
-      if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false)
+      const inBtn  = btnRef.current?.contains(e.target)
+      const inDrop = dropRef.current?.contains(e.target)
+      if (!inBtn && !inDrop) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -49,22 +52,29 @@ function UserMenu({ userEmail, onLogout }) {
   }
 
   return (
-    <div ref={btnRef}>
-      <button className="btn-user-logged" onClick={toggle}>
+    <>
+      <button ref={btnRef} className="btn-user-logged" onClick={toggle}>
         <span className="btn-user-dot" />
         {userEmail.split('@')[0]}
         <span style={{ fontSize: '0.6rem', opacity: 0.6, marginLeft: 2 }}>▾</span>
       </button>
 
       {open && (
-        <div className="user-dropdown" style={{ position: 'fixed', top: pos.top, right: pos.right }}>
+        <div
+          ref={dropRef}
+          className="user-dropdown"
+          style={{ position: 'fixed', top: pos.top, right: pos.right }}
+        >
           <div className="user-dropdown-email">{userEmail}</div>
-          <button className="user-dropdown-logout" onClick={() => { setOpen(false); onLogout() }}>
+          <button
+            className="user-dropdown-logout"
+            onMouseDown={(e) => { e.stopPropagation(); setOpen(false); onLogout() }}
+          >
             Выйти
           </button>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
