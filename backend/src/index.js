@@ -137,21 +137,22 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/product/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image, sales_count
+      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image, sales_count, ggsell_price, supplier
        FROM products WHERE product_id = $1`,
       [req.params.id]
     )
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' })
     const p = result.rows[0]
     const markupMap = await getMarkupMap()
+    const effectiveCost = (p.supplier === 'gg' && p.ggsell_price) ? p.ggsell_price : p.price
     res.json({
       id: p.product_id,
       title: p.name,
       service: p.group_name,
       platform: p.group_name,
       category: 'Цифровые товары',
-      price: p.price_site != null ? Math.ceil(parseFloat(p.price_site)) : applyMarkup(p.price, p.group_name, p.markup, markupMap),
-      base_price: parseFloat(p.price),
+      price: p.price_site != null ? Math.ceil(parseFloat(p.price_site)) : applyMarkup(effectiveCost, p.group_name, p.markup, markupMap),
+      base_price: parseFloat(effectiveCost),
       region: p.region || 'Любой',
       description: p.description || '',
       image: p.image || null,
