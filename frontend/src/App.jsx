@@ -237,7 +237,8 @@ function App() {
         {view === 'home' && (
           <>
             <div className="home-search-bar">
-              <div className="search-wrap" ref={searchRef} style={{ position: 'relative' }}>
+              <p className="home-search-tagline">Цифровые коды · Мгновенная доставка</p>
+              <div className="search-wrap" ref={searchRef} style={{ position: 'relative', width: '100%', zIndex: 1 }}>
                 <input
                   type="text"
                   className="search-input search-input--home"
