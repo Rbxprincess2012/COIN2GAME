@@ -13,8 +13,15 @@ function GoogleButton({ onLogin }) {
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: (res) => {
-          const payload = JSON.parse(atob(res.credential.split('.')[1]))
-          onLogin({ email: payload.email, name: payload.name })
+          try {
+            // base64url → base64 (Google JWT uses url-safe encoding)
+            const b64 = res.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+            const padded = b64 + '='.repeat((4 - b64.length % 4) % 4)
+            const payload = JSON.parse(atob(padded))
+            if (payload.email) onLogin({ email: payload.email, name: payload.name || payload.email })
+          } catch (e) {
+            console.error('[Google] JWT decode error:', e)
+          }
         },
       })
       window.google.accounts.id.renderButton(containerRef.current, {
