@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+
 function Logo() {
   return (
     <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -24,8 +26,6 @@ function Logo() {
     </svg>
   )
 }
-
-import { useEffect, useRef, useState } from 'react'
 
 function UserMenu({ userEmail, onLogout }) {
   const [open, setOpen] = useState(false)
