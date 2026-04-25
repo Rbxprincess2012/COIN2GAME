@@ -360,17 +360,27 @@ export async function syncGGSellPrices() {
 
     if (bestDenom) {
       matched++
-      const ggRub = bestDenom.price * rate
-      // Обновляем: сохраняем GGSell цену и denomination_id, ставим supplier=gg
-      await pool.query(
-        `UPDATE products SET ggsell_denomination_id=$1, ggsell_price=$2, supplier='gg', updated_at=NOW() WHERE product_id=$3`,
-        [bestDenom.id, Math.ceil(ggRub), prod.product_id]
-      )
-      updated++
+      const ggRub = Math.ceil(bestDenom.price * rate)
+      const fpRub  = parseFloat(prod.price)
+
+      if (ggRub < fpRub) {
+        // GGSell дешевле → берём его цену и помечаем как GGSell-поставщик
+        await pool.query(
+          `UPDATE products SET ggsell_denomination_id=$1, ggsell_price=$2, supplier='gg', updated_at=NOW() WHERE product_id=$3`,
+          [bestDenom.id, ggRub, prod.product_id]
+        )
+        updated++
+      } else {
+        // FP дешевле или равно → оставляем FP, сбрасываем GGSell
+        await pool.query(
+          `UPDATE products SET ggsell_denomination_id=NULL, ggsell_price=NULL, supplier='fp', updated_at=NOW() WHERE product_id=$3`,
+          [prod.product_id]
+        )
+      }
     }
   }
 
-  // Товары без совпадения — возвращаем на fp
+  // Товары без совпадения — сбрасываем на fp
   await pool.query(`
     UPDATE products SET supplier='fp', ggsell_denomination_id=NULL, ggsell_price=NULL
     WHERE ggsell_denomination_id IS NULL AND supplier='gg'

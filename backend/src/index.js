@@ -652,24 +652,57 @@ app.post('/api/cp/complete', async (req, res) => {
     const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
     const orderNumber = `CG-${seqRes.rows[0].num}`
 
-    // Получаем название товара
-    const prodRes = await pool.query(`SELECT name, price FROM products WHERE product_id=$1`, [String(product_id)])
+    // Получаем товар из БД (включая поставщика)
+    const prodRes = await pool.query(
+      `SELECT name, price, supplier, ggsell_denomination_id FROM products WHERE product_id=$1`,
+      [String(product_id)]
+    )
     const productName = prodRes.rows[0]?.name || `Товар #${product_id}`
     const price = prodRes.rows[0]?.price || null
+    const supplier = prodRes.rows[0]?.supplier || 'fp'
+    const ggDenomId = prodRes.rows[0]?.ggsell_denomination_id
 
-    // Доставляем товар через ForeignPay deposit
-    const path = product_type === 'TOPUP' ? '/topup/deposit' : '/voucher/deposit'
-    const request = {
-      product_id: parseInt(product_id),
-      email,
-      order_id,
-      ...(product_type === 'TOPUP' && topup_data ? topup_data : {}),
+    let data, activationCode
+
+    if (supplier === 'gg' && ggDenomId) {
+      // ── Покупаем у GGSell ──────────────────────────────────────────
+      const ggKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+      const ggHeaders = { 'X-API-Key': ggKey, 'Content-Type': 'application/json' }
+
+      // 1. Создаём заказ (резервирование)
+      const orderRes = await fetch('https://api.g-engine.net/v2.1/shop/orders', {
+        method: 'POST', headers: ggHeaders,
+        body: JSON.stringify({ items: [{ id: ggDenomId, quantity: 1 }] })
+      })
+      const orderData = await orderRes.json()
+      if (!orderData.success) throw new Error('GGSell order failed: ' + orderData.message)
+      const ggOrderId = orderData.data?.id
+
+      // 2. Оплачиваем заказ с баланса мерчанта
+      const payRes = await fetch(`https://api.g-engine.net/v2.1/shop/orders/${ggOrderId}/pay`, {
+        method: 'POST', headers: ggHeaders,
+        body: JSON.stringify({})
+      })
+      const payData = await payRes.json()
+      if (!payData.success) throw new Error('GGSell pay failed: ' + payData.message)
+
+      // 3. Извлекаем код активации
+      const items = payData.data?.products?.[0]?.denominations?.[0]?.items || []
+      activationCode = items[0]?.activation_code || null
+      const instruction = payData.data?.products?.[0]?.denominations?.[0]?.items?.[0]?.instruction || null
+      data = { ...payData.data, code: activationCode, instruction, supplier: 'gg' }
+    } else {
+      // ── Покупаем у ForeignPay ──────────────────────────────────────
+      const path = product_type === 'TOPUP' ? '/topup/deposit' : '/voucher/deposit'
+      const request = {
+        product_id: parseInt(product_id),
+        email, order_id,
+        ...(product_type === 'TOPUP' && topup_data ? topup_data : {}),
+      }
+      data = await fpPost(FP_PROXY, { path, request })
+      activationCode = data?.code || data?.activation_code || data?.voucher_code
+        || data?.data?.code || data?.result?.code || null
     }
-    const data = await fpPost(FP_PROXY, { path, request })
-
-    // Извлекаем код активации из ответа FP
-    const activationCode = data?.code || data?.activation_code || data?.voucher_code
-      || data?.data?.code || data?.result?.code || null
 
     // Сохраняем заказ в БД
     await pool.query(
