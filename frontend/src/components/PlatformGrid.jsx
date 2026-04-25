@@ -1,25 +1,25 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { SERVICE_CONFIG } from '../config/services'
 
-const FALLBACK_ACCENTS = ['#66c0f4','#a855f7','#52b043','#f59e0b','#44d62c','#a2aaad','#c8a95a','#0070d1','#f87171']
+const FALLBACK_ACCENTS = ['#865fff','#865fff','#865fff','#865fff','#865fff','#865fff']
 
 function getGroupCfg(groupName, idx) {
   const cfg = SERVICE_CONFIG[groupName]
   if (cfg) return cfg
   return {
     accent: FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length],
-    bg: 'linear-gradient(135deg, #0d1824 0%, #1b2838 100%)',
     label: groupName,
   }
 }
 
-function MaskLogo({ src, color, size = 44 }) {
+function MaskLogo({ src, size = 44 }) {
   return (
     <div style={{
       width: size,
       height: size,
       flexShrink: 0,
-      backgroundColor: color,
+      backgroundColor: 'rgba(255,255,255,0.75)',
       WebkitMaskImage: `url(${src})`,
       maskImage: `url(${src})`,
       WebkitMaskRepeat: 'no-repeat',
@@ -28,7 +28,6 @@ function MaskLogo({ src, color, size = 44 }) {
       maskSize: 'contain',
       WebkitMaskPosition: 'center',
       maskPosition: 'center',
-      filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))',
     }} />
   )
 }
@@ -36,23 +35,26 @@ function MaskLogo({ src, color, size = 44 }) {
 function GroupTile({ g, idx, onSelectService }) {
   const cfg = getGroupCfg(g.group, idx)
   return (
-    <button
+    <motion.button
       className="platform-tile"
-      style={{ background: cfg.bg }}
+      style={{ '--ta': cfg.accent }}
       onClick={() => onSelectService(g.group)}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: idx * 0.03 }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
     >
       {cfg.logo
-        ? <MaskLogo src={cfg.logo} color={cfg.accent} size={44} />
-        : <div style={{ width: 44, height: 44, flexShrink: 0 }} />
+        ? <MaskLogo src={cfg.logo} size={40} />
+        : <div style={{ width: 40, height: 40, flexShrink: 0 }} />
       }
       <div className="platform-tile-info">
-        <span className="platform-tile-name" style={{ color: cfg.accent }}>
-          {cfg.label || g.group}
-        </span>
+        <span className="platform-tile-name">{cfg.label || g.group}</span>
         <span className="platform-tile-count">{g.available} товаров</span>
       </div>
       <div className="platform-tile-arrow">→</div>
-    </button>
+    </motion.button>
   )
 }
 
@@ -102,13 +104,22 @@ function PlatformGrid({ onSelectService, searchQuery = '', groups = [] }) {
               <span>{showOthers ? '↑ Свернуть' : `Все категории (${otherGroups.length} ещё)`}</span>
             </button>
           </div>
-          {showOthers && (
-            <div className="platform-grid" style={{ marginTop: 12 }}>
-              {otherGroups.map((g, idx) => (
-                <GroupTile key={g.group} g={g} idx={mainGroups.length + idx} onSelectService={onSelectService} />
-              ))}
-            </div>
-          )}
+          <AnimatePresence>
+            {showOthers && (
+              <motion.div
+                className="platform-grid"
+                style={{ marginTop: 12 }}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                {otherGroups.map((g, idx) => (
+                  <GroupTile key={g.group} g={g} idx={mainGroups.length + idx} onSelectService={onSelectService} />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </section>
