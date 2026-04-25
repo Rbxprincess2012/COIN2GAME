@@ -615,17 +615,19 @@ export async function syncWbPrices() {
 
   if (pRes.rows.length === 0) return { ok: true, pushed: 0, skipped: 0 }
 
-  // Group by token (V-MARINA-* → marina, V-TATYANA-* or V-* → tatyana)
-  const byToken = { [marinaToken]: [], [tatyanaToken]: [] }
+  // All digital goods (V-*) are in Marina's WB account.
+  // Only route to Tatyana if the article explicitly starts with 'TA-'.
+  const byToken = {}
+  if (marinaToken) byToken[marinaToken] = []
+  if (tatyanaToken) byToken[tatyanaToken] = []
   for (const p of pRes.rows) {
     const price = p.price_wb != null
       ? Math.ceil(parseFloat(p.price_wb))
       : Math.ceil(parseFloat(p.price) * factor)
 
-    const isMarina = p.wb_article?.toUpperCase().includes('MARINA')
-    const token = isMarina ? marinaToken : tatyanaToken
-    if (!token) continue
-    if (!byToken[token]) byToken[token] = []
+    const isTatyana = p.wb_article?.startsWith('TA-')
+    const token = isTatyana ? tatyanaToken : marinaToken
+    if (!token || !byToken[token]) continue
     byToken[token].push({ nmID: Number(p.wb_nmid), price })
   }
 
@@ -776,6 +778,24 @@ router.post('/wb/push-account-prices', async (req, res) => {
   }
 })
 
+
+// Diagnostic: count products with wb_nmid in DB
+router.get('/wb/nmid-stats', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT COUNT(*) as total,
+             COUNT(wb_nmid) as with_nmid,
+             MIN(wb_nmid) as min_nmid, MAX(wb_nmid) as max_nmid
+      FROM products WHERE wb_nmid IS NOT NULL
+    `)
+    const sample = await pool.query(`
+      SELECT product_id, name, wb_nmid, wb_article
+      FROM products WHERE wb_nmid IS NOT NULL
+      ORDER BY wb_nmid LIMIT 10
+    `)
+    res.json({ stats: r.rows[0], sample: sample.rows })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
 
 // Diagnostic: list goods from a WB account
 router.get('/wb/account-goods', async (req, res) => {
