@@ -777,6 +777,39 @@ router.post('/wb/push-account-prices', async (req, res) => {
 })
 
 
+// Diagnostic: list goods from a WB account
+router.get('/wb/account-goods', async (req, res) => {
+  try {
+    const { token_key = 'marina' } = req.query
+    const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wb_marina_token','wb_tatyana_token')`)
+    const s = {}
+    for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
+    const token = token_key === 'marina' ? s['wb_marina_token'] : s['wb_tatyana_token']
+    if (!token) return res.status(400).json({ error: `No token for ${token_key}` })
+
+    const r = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=20&offset=0', {
+      headers: { Authorization: token }
+    })
+    const data = await r.json()
+    const goods = (data?.data?.listGoods || []).map(g => ({
+      nmID: g.nmID, vendorCode: g.vendorCode, price: g.sizes?.[0]?.price, discount: g.discount
+    }))
+
+    // Check which of these nmIDs are in DB
+    const dbRes = await pool.query(
+      `SELECT wb_nmid, wb_article, name FROM products WHERE wb_nmid::text = ANY($1::text[])`,
+      [goods.map(g => String(g.nmID))]
+    )
+    const dbMap = {}
+    for (const p of dbRes.rows) dbMap[String(p.wb_nmid)] = { article: p.wb_article, name: p.name }
+
+    res.json({
+      total: data?.data?.total,
+      sample: goods.map(g => ({ ...g, inDB: dbMap[String(g.nmID)] || null }))
+    })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 router.post('/wb/reset-ggsell/:id', async (req, res) => {
   try {
     await pool.query(
