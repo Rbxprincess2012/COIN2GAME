@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 function Logo() {
   return (
@@ -59,7 +60,7 @@ function UserMenu({ userEmail, onLogout }) {
         <span style={{ fontSize: '0.6rem', opacity: 0.6, marginLeft: 2 }}>▾</span>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={dropRef}
           className="user-dropdown"
@@ -72,7 +73,8 @@ function UserMenu({ userEmail, onLogout }) {
           >
             Выйти
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
