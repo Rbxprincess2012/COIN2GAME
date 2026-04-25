@@ -260,6 +260,21 @@ function App() {
                         Раскладка исправлена: <b>{fixedQuery}</b>
                       </div>
                     )}
+                    {/* Кнопка "Открыть всю категорию" — по самой частой платформе в результатах */}
+                    {!searchLoading && suggestions.length > 0 && (() => {
+                      const freq = {}
+                      suggestions.forEach(p => { freq[p.platform] = (freq[p.platform] || 0) + 1 })
+                      const topCategory = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0]
+                      return topCategory ? (
+                        <button
+                          className="search-suggestion-category"
+                          onMouseDown={() => { goToPlatform(topCategory); setHomeSearch(''); setShowSuggestions(false) }}
+                        >
+                          <span>Открыть всю категорию</span>
+                          <span className="search-suggestion-category-name">{topCategory} →</span>
+                        </button>
+                      ) : null
+                    })()}
                     {searchLoading && <div className="search-suggestions-loading">Поиск...</div>}
                     {!searchLoading && suggestions.length === 0 && (
                       <div className="search-suggestions-empty">Ничего не найдено</div>
