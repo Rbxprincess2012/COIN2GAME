@@ -663,100 +663,98 @@ router.post('/wb/sync-prices', async (req, res) => {
 })
 
 // Push prices to specific WB account for goods already listed there
+async function pushAccountPrices(token_key = 'marina') {
+  const sRes = await pool.query(`SELECT key, value FROM settings`)
+  const s = {}
+  for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
+
+  const token = token_key === 'marina' ? s['wb_marina_token'] : s['wb_tatyana_token']
+  if (!token) throw new Error(`Нет токена ${token_key}`)
+
+  const targetMargin = parseFloat(s['markup_global']) || 0
+  const wbCommission = parseFloat(s['wb_commission']) || 25
+  const entKey = (s['active_entrepreneur'] || 'tatyana').toString().replace(/"/g, '')
+  const tax = entKey === 'marina' ? 8 : 6
+  const wbDeduct = wbCommission + tax
+  const factor = (1 + targetMargin / 100) / (1 - wbDeduct / 100)
+  const delay = ms => new Promise(r => setTimeout(r, ms))
+
+  let allGoods = [], offset = 0
+  while (true) {
+    const r = await fetch(`https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=100&offset=${offset}`, {
+      headers: { Authorization: token }
+    })
+    if (r.status === 429) {
+      const w = parseInt(r.headers.get('X-Ratelimit-Retry') || '60')
+      console.log(`[WB push-account] 429 — waiting ${w}s`)
+      await delay(w * 1000); continue
+    }
+    const data = await r.json()
+    const goods = data?.data?.listGoods || []
+    allGoods.push(...goods)
+    if (goods.length < 100 || allGoods.length >= (data?.data?.total || 0)) break
+    offset += 100
+    await delay(700)
+  }
+
+  if (!allGoods.length) return { ok: true, pushed: 0, message: 'Нет товаров в WB' }
+
+  const nmIDs = allGoods.map(g => g.nmID)
+  const dbRes = await pool.query(
+    `SELECT product_id, price, price_wb, ggsell_price, supplier, wb_nmid
+     FROM products WHERE wb_nmid = ANY($1)`, [nmIDs]
+  )
+  const dbMap = {}
+  for (const p of dbRes.rows) dbMap[Number(p.wb_nmid)] = p
+
+  const updates = []
+  for (const g of allGoods) {
+    const p = dbMap[g.nmID]
+    if (!p) continue
+    const cost = (p.supplier === 'gg' && p.ggsell_price) ? parseFloat(p.ggsell_price) : parseFloat(p.price)
+    const newPrice = p.price_wb != null ? Math.ceil(parseFloat(p.price_wb)) : Math.ceil(cost * factor)
+    updates.push({ nmID: g.nmID, price: newPrice })
+  }
+
+  if (!updates.length) return { ok: true, pushed: 0, matched: 0, message: 'Совпадений в БД не найдено' }
+
+  let pushed = 0, errors = 0
+  for (let i = 0; i < updates.length; i += 1000) {
+    if (i > 0) await delay(700)
+    const batch = updates.slice(i, i + 1000)
+    const r = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/upload/task', {
+      method: 'POST',
+      headers: { Authorization: token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: batch }),
+    })
+    if (r.status === 429) {
+      const w = parseInt(r.headers.get('X-Ratelimit-Retry') || '60')
+      await delay(w * 1000); errors += batch.length
+    } else {
+      const data = await r.json()
+      if (r.ok && !data.error) pushed += batch.length
+      else errors += batch.length
+    }
+  }
+
+  const result = { ok: true, total_wb: allGoods.length, matched: updates.length, pushed, errors }
+  await log('WB_ACCOUNT_PRICES', null, null, { token_key, ...result })
+  return result
+}
+
 router.post('/wb/push-account-prices', async (req, res) => {
   try {
     const { token_key = 'marina' } = req.body
-    const sRes = await pool.query(`SELECT key, value FROM settings`)
-    const s = {}
-    for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
-
-    const token = token_key === 'marina' ? s['wb_marina_token'] : s['wb_tatyana_token']
-    if (!token) return res.status(400).json({ error: `Нет токена ${token_key}` })
-
-    const targetMargin = parseFloat(s['markup_global']) || 0
-    const wbCommission = parseFloat(s['wb_commission']) || 25
-    const entKey = (s['active_entrepreneur'] || 'tatyana').toString().replace(/"/g, '')
-    const tax = entKey === 'marina' ? 8 : 6
-    const wbDeduct = wbCommission + tax
-    const factor = (1 + targetMargin / 100) / (1 - wbDeduct / 100)
-
-    const delay = ms => new Promise(r => setTimeout(r, ms))
-
-    // Get all WB goods for this account
-    let allGoods = [], offset = 0
-    while (true) {
-      const r = await fetch(`https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=100&offset=${offset}`, {
-        headers: { Authorization: token }
-      })
-      if (r.status === 429) {
-        const w = parseInt(r.headers.get('X-Ratelimit-Retry') || '60')
-        console.log(`[WB push-account] 429 — waiting ${w}s`)
-        await delay(w * 1000)
-        continue
-      }
-      const data = await r.json()
-      const goods = data?.data?.listGoods || []
-      allGoods.push(...goods)
-      if (goods.length < 100 || allGoods.length >= (data?.data?.total || 0)) break
-      offset += 100
-      await delay(700)
-    }
-
-    // Find matches in our DB by wb_nmid
-    const nmIDs = allGoods.map(g => g.nmID)
-    if (!nmIDs.length) return res.json({ ok: true, pushed: 0, message: 'Нет товаров в WB' })
-
-    const dbRes = await pool.query(
-      `SELECT product_id, price, price_wb, ggsell_price, supplier, wb_nmid
-       FROM products WHERE wb_nmid = ANY($1)`,
-      [nmIDs]
-    )
-
-    const dbMap = {}
-    for (const p of dbRes.rows) dbMap[Number(p.wb_nmid)] = p
-
-    // Build price updates only for matched goods
-    const updates = []
-    for (const g of allGoods) {
-      const p = dbMap[g.nmID]
-      if (!p) continue // not in our DB — skip
-      const cost = (p.supplier === 'gg' && p.ggsell_price) ? parseFloat(p.ggsell_price) : parseFloat(p.price)
-      const newPrice = p.price_wb != null
-        ? Math.ceil(parseFloat(p.price_wb))
-        : Math.ceil(cost * factor)
-      updates.push({ nmID: g.nmID, price: newPrice })
-    }
-
-    if (!updates.length) return res.json({ ok: true, pushed: 0, matched: 0, message: 'Совпадений в БД не найдено' })
-
-    // Push in batches of 1000 with 700ms delay (WB limit: 10 req/6s)
-    let pushed = 0, errors = 0
-    for (let i = 0; i < updates.length; i += 1000) {
-      if (i > 0) await delay(700)
-      const batch = updates.slice(i, i + 1000)
-      const r = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/upload/task', {
-        method: 'POST',
-        headers: { Authorization: token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: batch }),
-      })
-      if (r.status === 429) {
-        const w = parseInt(r.headers.get('X-Ratelimit-Retry') || '60')
-        await delay(w * 1000)
-        errors += batch.length
-      } else {
-        const data = await r.json()
-        if (r.ok && !data.error) pushed += batch.length
-        else errors += batch.length
-      }
-    }
-
-    await log('WB_ACCOUNT_PRICES', null, null, { token_key, total_wb: allGoods.length, matched: updates.length, pushed, errors })
-    res.json({ ok: true, total_wb: allGoods.length, matched: updates.length, pushed, errors })
+    // Respond immediately, run in background
+    res.json({ ok: true, message: 'Запущено в фоне, проверьте логи через минуту' })
+    pushAccountPrices(token_key)
+      .then(r => console.log('[WB push-account]', JSON.stringify(r)))
+      .catch(e => console.error('[WB push-account] failed:', e.message))
   } catch (e) {
-    console.error('[WB push-account-prices]', e)
     res.status(500).json({ error: e.message })
   }
 })
+
 
 router.post('/wb/reset-ggsell/:id', async (req, res) => {
   try {
