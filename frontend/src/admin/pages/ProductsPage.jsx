@@ -666,7 +666,9 @@ export default function ProductsPage() {
             {loading
               ? <tr><td colSpan={11} className="a-loading">Загрузка...</td></tr>
               : sortedProducts.map(p => {
-                  const cost = parseFloat(p.price)
+                  const isGG    = p.supplier === 'gg' && p.ggsell_price
+                  const cost    = parseFloat(isGG ? p.ggsell_price : p.price)
+                  const fpCost  = parseFloat(p.price)
                   const effSite = getEffectiveSitePrice(p)
                   const effWb   = getEffectiveWbPrice(p)
                   const autoSite = effSite == null
@@ -709,7 +711,18 @@ export default function ProductsPage() {
                           {p.product_type || '—'}
                         </span>
                       </td>
-                      <td>₽{cost.toLocaleString('ru-RU')}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span>₽{cost.toLocaleString('ru-RU')}</span>
+                          {isGG && (
+                            <span title={`FP: ₽${fpCost.toLocaleString('ru-RU')}`} style={{
+                              fontSize: '0.62rem', fontWeight: 700, padding: '1px 5px',
+                              borderRadius: 4, background: 'rgba(74,222,128,0.15)',
+                              color: '#4ade80', cursor: 'default',
+                            }}>GG</span>
+                          )}
+                        </div>
+                      </td>
 
                       {/* Цена сайт */}
                       <td style={{ paddingBottom: 6 }}>

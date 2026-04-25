@@ -80,7 +80,8 @@ router.get('/products', async (req, res) => {
 
     params.push(Number(limit), offset)
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, price_site, price_wb, in_stock, paused, product_type, currency, description, updated_at
+      `SELECT product_id, name, group_name, region, price, markup, price_site, price_wb, in_stock, paused, product_type, currency, description, updated_at,
+              ggsell_price, supplier
        FROM products ${clause}
        ORDER BY group_name, name
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
