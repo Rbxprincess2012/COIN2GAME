@@ -595,9 +595,7 @@ async function sendOrderEmail({ email, orderNumber, productName, activationCode,
 // POST /api/cp/complete — верификация CP-транзакции и доставка товара через FP deposit
 // POST /api/test-purchase — тестовый заказ без оплаты (только для разработки)
 app.post('/api/test-purchase', async (req, res) => {
-  if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
-    return res.status(403).json({ error: 'Test mode disabled' })
-  }
+  // Тестовый заказ — доступен всем, реальных списаний нет
   try {
     const { product_id, email } = req.body
     if (!product_id || !email) return res.status(400).json({ error: 'product_id and email required' })
