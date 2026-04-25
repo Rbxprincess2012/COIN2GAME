@@ -713,7 +713,7 @@ export default function ProductsPage() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span>₽{cost.toLocaleString('ru-RU')}</span>
+                          <span>₽{Math.round(cost).toLocaleString('ru-RU')}</span>
                           {isGG && (
                             <span title={`FP: ₽${fpCost.toLocaleString('ru-RU')}`} style={{
                               fontSize: '0.62rem', fontWeight: 700, padding: '1px 5px',
