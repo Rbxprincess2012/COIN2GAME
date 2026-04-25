@@ -311,6 +311,16 @@ router.get('/ggsell/denominations/:product_id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+router.get('/ggsell/currencies', async (req, res) => {
+  try {
+    const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const r = await fetch('https://api.g-engine.net/v2.1/currencies', {
+      headers: { 'X-API-Key': apiKey }
+    })
+    res.json(await r.json())
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 router.get('/ggsell/balance', async (req, res) => {
   try {
     const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
