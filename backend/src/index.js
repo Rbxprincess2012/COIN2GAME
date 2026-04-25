@@ -211,12 +211,13 @@ function getMailTransport() {
   if (!user || !pass) return null
   return nodemailer.createTransport({
     host: 'smtp.yandex.ru',
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: { user, pass },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   })
 }
 
