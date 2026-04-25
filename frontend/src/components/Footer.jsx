@@ -46,7 +46,7 @@ function Footer() {
           <div className="step-card">
             <div className="step-num">3</div>
             <h3>Оплатите заказ</h3>
-            <p>Банковская карта, Crypto или СБП — выберите удобный способ.</p>
+            <p>Оплата через СБП — быстро и безопасно с любого российского банка.</p>
           </div>
           <div className="step-card">
             <div className="step-num">4</div>
@@ -77,7 +77,7 @@ function Footer() {
           </details>
           <details className="faq-item">
             <summary>Какие способы оплаты принимаете?</summary>
-            <p>Банковские карты (Visa, MasterCard, МИР), криптовалюта и СБП.</p>
+            <p>Оплата через СБП — Система быстрых платежей. Поддерживается любым российским банком: Сбер, Тинькофф, ВТБ и другие.</p>
           </details>
         </div>
 
