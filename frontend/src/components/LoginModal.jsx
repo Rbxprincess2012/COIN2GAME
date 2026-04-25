@@ -4,7 +4,6 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 function GoogleButton({ onLogin }) {
   const containerRef = useRef(null)
-  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return
@@ -14,7 +13,6 @@ function GoogleButton({ onLogin }) {
         client_id: GOOGLE_CLIENT_ID,
         callback: (res) => {
           try {
-            // base64url → base64 (Google JWT uses url-safe encoding)
             const b64 = res.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
             const padded = b64 + '='.repeat((4 - b64.length % 4) % 4)
             const payload = JSON.parse(atob(padded))
@@ -27,11 +25,11 @@ function GoogleButton({ onLogin }) {
       window.google.accounts.id.renderButton(containerRef.current, {
         theme: 'filled_black',
         size: 'large',
-        width: 360,
+        width: containerRef.current.offsetWidth || 360,
         text: 'signin_with',
         locale: 'ru',
+        shape: 'rectangular',
       })
-      setReady(true)
     }
     if (window.google) init()
     else {
@@ -42,28 +40,12 @@ function GoogleButton({ onLogin }) {
 
   if (!GOOGLE_CLIENT_ID) return null
 
+  // Рендерим Google кнопку напрямую — без overlay
   return (
-    <div style={{ position: 'relative', height: 48, borderRadius: 14, overflow: 'hidden' }}>
-      {/* Наша кнопка — только визуал */}
-      <div className="login-google-btn" style={{ pointerEvents: 'none', height: '100%', borderRadius: 0 }}>
-        <svg width="18" height="18" viewBox="0 0 18 18">
-          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-          <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
-          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
-        </svg>
-        Войти через Google
-      </div>
-      {/* Реальная Google кнопка — прозрачная поверх */}
-      <div
-        ref={containerRef}
-        style={{
-          position: 'absolute', inset: 0,
-          opacity: ready ? 0.01 : 0,
-          overflow: 'hidden',
-        }}
-      />
-    </div>
+    <div
+      ref={containerRef}
+      style={{ width: '100%', display: 'flex', justifyContent: 'center', borderRadius: 14, overflow: 'hidden' }}
+    />
   )
 }
 
