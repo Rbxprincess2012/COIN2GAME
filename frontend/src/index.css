@@ -1730,52 +1730,7 @@ button {
 /* ── Home search bar ────────────────────────────────────────────────── */
 .home-search-bar {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 48px 24px 40px;
-  position: relative;
-  overflow: hidden;
-  border-radius: 28px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: rgba(7,14,29,0.96);
-}
-
-/* Тонкая сетка — вдохновение из 21st.dev hero patterns */
-.home-search-bar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 60%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 60%, transparent 100%);
-  pointer-events: none;
-}
-
-/* Радиальный акцент за поиском */
-.home-search-bar::after {
-  content: '';
-  position: absolute;
-  top: -60px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  height: 300px;
-  background: radial-gradient(ellipse, rgba(134,95,255,0.12) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.home-search-tagline {
-  position: relative;
-  z-index: 1;
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0;
+  justify-content: center;
 }
 
 .search-input--home {
@@ -1784,8 +1739,6 @@ button {
   padding: 18px 52px 18px 24px !important;
   font-size: 1.05rem !important;
   border-radius: 18px !important;
-  position: relative;
-  z-index: 1;
 }
 
 /* ── Featured section ───────────────────────────────────────────────── */
