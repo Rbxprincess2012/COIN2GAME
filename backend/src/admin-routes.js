@@ -754,12 +754,23 @@ async function pushAccountPrices(token_key = 'marina') {
 
 router.post('/wb/push-account-prices', async (req, res) => {
   try {
-    const { token_key = 'marina' } = req.body
+    const { token_key = 'marina', sync = false } = req.body
+    if (sync) {
+      // Synchronous mode: wait and return result
+      const result = await pushAccountPrices(token_key)
+      return res.json(result)
+    }
     // Respond immediately, run in background
     res.json({ ok: true, message: 'Запущено в фоне, проверьте логи через минуту' })
     pushAccountPrices(token_key)
-      .then(r => console.log('[WB push-account]', JSON.stringify(r)))
-      .catch(e => console.error('[WB push-account] failed:', e.message))
+      .then(r => {
+        console.log('[WB push-account]', JSON.stringify(r))
+        log('WB_ACCOUNT_PRICES', null, null, { token_key, ...r }).catch(() => {})
+      })
+      .catch(e => {
+        console.error('[WB push-account] failed:', e.message)
+        log('WB_ACCOUNT_PRICES_ERROR', null, null, { token_key, error: e.message }).catch(() => {})
+      })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
