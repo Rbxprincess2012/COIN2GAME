@@ -361,6 +361,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
               <button className="close-button" onClick={handleClose}>×</button>
             </div>
 
+            <div className="checkout-body">
             <div className="checkout-items">
               {(items.length === 1 ? items : [currentItem]).map((item) => (
                 <div key={item.cartKey || item.id} className="checkout-item">
@@ -427,6 +428,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
                 🧪 Тестовый заказ (без оплаты)
               </button>
             )}
+            </div>{/* end checkout-body */}
           </>
         )}
 
