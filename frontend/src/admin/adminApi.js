@@ -89,6 +89,7 @@ export const adminApi = {
 
   // ForeignPay
   getFpBalance: () => req('GET', '/fp/balance'),
+  getGGBalance: () => req('GET', '/ggsell/balance'),
 
   // Logs
   getLogs: (params = {}) => {

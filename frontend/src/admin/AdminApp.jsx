@@ -133,6 +133,46 @@ function FpBalance() {
   )
 }
 
+function GGBalance() {
+  const [balance, setBalance] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try { setBalance(await adminApi.getGGBalance()) } catch {}
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    refresh()
+    const hourly = setInterval(refresh, 60 * 60 * 1000)
+    window.addEventListener('fp-sync', refresh)
+    return () => { clearInterval(hourly); window.removeEventListener('fp-sync', refresh) }
+  }, [refresh])
+
+  const bal = balance?.data?.balance
+  const fmt = (v) => Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderLeft: '1px solid rgba(255,255,255,0.08)', paddingLeft: 16 }}>
+      <span style={{ fontSize: '0.7rem', color: '#92a2d4', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+        Баланс GG
+      </span>
+      {loading
+        ? <span style={{ fontSize: '0.78rem', color: '#92a2d4' }}>...</span>
+        : bal != null
+          ? <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#4ade80' }}>${fmt(bal)}</span>
+          : <span style={{ fontSize: '0.78rem', color: '#92a2d4' }}>—</span>
+      }
+      <button onClick={refresh} disabled={loading} style={{
+        background: 'none', border: 'none', cursor: loading ? 'default' : 'pointer',
+        color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px',
+        opacity: loading ? 0.4 : 1,
+      }}>↻</button>
+    </div>
+  )
+}
+
 export default function AdminApp() {
   const [authed, setAuthed] = useState(!!getToken())
   const [page, setPage] = useState('products')
@@ -169,6 +209,7 @@ export default function AdminApp() {
       <div className="a-main-wrap">
         <header className="a-topbar">
           <FpBalance />
+          <GGBalance />
         </header>
         <main className="a-main">
           {page === 'products'    && <ProductsPage />}

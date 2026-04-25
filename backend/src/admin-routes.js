@@ -362,7 +362,7 @@ export async function syncGGSellPrices() {
       // Обновляем: сохраняем GGSell цену и denomination_id, ставим supplier=gg
       await pool.query(
         `UPDATE products SET ggsell_denomination_id=$1, ggsell_price=$2, supplier='gg', updated_at=NOW() WHERE product_id=$3`,
-        [bestDenom.id, ggRub, prod.product_id]
+        [bestDenom.id, Math.ceil(ggRub), prod.product_id]
       )
       updated++
     }
