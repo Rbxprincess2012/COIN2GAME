@@ -593,6 +593,41 @@ async function sendOrderEmail({ email, orderNumber, productName, activationCode,
 }
 
 // POST /api/cp/complete — верификация CP-транзакции и доставка товара через FP deposit
+// POST /api/test-purchase — тестовый заказ без оплаты (только для разработки)
+app.post('/api/test-purchase', async (req, res) => {
+  if (process.env.NODE_ENV === 'production' && !process.env.TEST_MODE) {
+    return res.status(403).json({ error: 'Test mode disabled' })
+  }
+  try {
+    const { product_id, email } = req.body
+    if (!product_id || !email) return res.status(400).json({ error: 'product_id and email required' })
+
+    const prodRes = await pool.query(`SELECT name, price FROM products WHERE product_id=$1`, [String(product_id)])
+    const productName = prodRes.rows[0]?.name || `Товар #${product_id}`
+
+    const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
+    const orderNumber = `CG-${seqRes.rows[0].num}`
+
+    // Генерируем тестовый код активации
+    const activationCode = `TEST-${Math.random().toString(36).slice(2,6).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`
+
+    await pool.query(
+      `INSERT INTO orders (order_number, email, product_id, product_name, product_type, activation_code, price, status, fp_response)
+       VALUES ($1,$2,$3,$4,'VOUCHER',$5,$6,'completed',$7)`,
+      [orderNumber, email, String(product_id), productName, activationCode, prodRes.rows[0]?.price, JSON.stringify({ test: true })]
+    ).catch(() => {})
+
+    pool.query(`UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`, [String(product_id)]).catch(() => {})
+
+    if (email) sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: 'Это тестовый заказ. Код активации не является реальным.' }).catch(() => {})
+
+    res.json({ ok: true, order_number: orderNumber, code: activationCode, voucher_code: activationCode, product_name: productName })
+  } catch (e) {
+    console.error('[test-purchase]', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.post('/api/cp/complete', async (req, res) => {
   try {
     const { transaction_id, order_id, product_id, product_type, email, topup_data } = req.body

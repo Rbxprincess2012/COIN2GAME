@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api'
+import { API_BASE } from '../config.js'
+
+const IS_TEST_MODE = import.meta.env.DEV || import.meta.env.VITE_TEST_MODE === 'true'
 
 // Extract displayable code/key from product info response
 function extractResult(info) {
@@ -398,6 +401,31 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
               <p className="checkout-meta-sub" style={{ textAlign: 'center', marginTop: 8 }}>
                 Visa, Mastercard, МИР — безопасная оплата через CloudPayments
               </p>
+            )}
+            {IS_TEST_MODE && isLoggedIn && (
+              <button
+                className="btn-secondary checkout-btn"
+                style={{ marginTop: 8, opacity: 0.7, fontSize: '0.8rem' }}
+                onClick={async () => {
+                  setLoading(true)
+                  try {
+                    const res = await fetch(`${API_BASE}/api/test-purchase`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ product_id: currentItem?.id, email: userEmail }),
+                    })
+                    const data = await res.json()
+                    if (data.ok) {
+                      setItemResult({ type: 'code', code: data.code || data.voucher_code, instruction: 'Это тестовый заказ. Код не является реальным.' })
+                      setStep('done-item')
+                    }
+                  } catch {}
+                  setLoading(false)
+                }}
+                disabled={loading}
+              >
+                🧪 Тестовый заказ (без оплаты)
+              </button>
             )}
           </>
         )}
