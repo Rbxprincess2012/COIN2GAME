@@ -1,9 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build output (except frontend/dist which is deployed to Timeweb)
 dist/
 build/
+!frontend/dist/
 
 # Environment variables — NEVER commit real secrets
 .env
