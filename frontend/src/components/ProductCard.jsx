@@ -1,11 +1,18 @@
+import { motion } from 'framer-motion'
+
 function ProductCard({ product, onSelect, onAdd, showBadge = false }) {
   return (
-    <article
+    <motion.article
       className="card product-card product-card--clickable"
       onClick={onSelect}
       role="button"
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && onSelect()}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      whileHover={{ y: -3, boxShadow: '0 8px 32px rgba(134,95,255,0.18)' }}
+      whileTap={{ scale: 0.98 }}
     >
       {showBadge && product.badge && (
         <div className="card-badge">{product.badge}</div>
@@ -19,16 +26,17 @@ function ProductCard({ product, onSelect, onAdd, showBadge = false }) {
         <div className="card-footer">
           <span className="card-region">Регион: {product.region}</span>
           <div className="card-actions">
-            <button
+            <motion.button
               className="btn-primary btn-sm"
               onClick={e => { e.stopPropagation(); onAdd() }}
+              whileTap={{ scale: 0.92 }}
             >
               Купить
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }
 

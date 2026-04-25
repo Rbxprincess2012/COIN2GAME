@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
@@ -127,8 +128,6 @@ function LoginModal({ visible, initialEmail, onClose, onSendCode, onVerifyCode, 
     if (visible && step === 'email') setTimeout(() => emailRef.current?.focus(), 50)
   }, [visible, step])
 
-  if (!visible) return null
-
   async function sendCode() {
     if (!email) return
     setLoading(true); setError('')
@@ -148,8 +147,24 @@ function LoginModal({ visible, initialEmail, onClose, onSendCode, onVerifyCode, 
   function handleEmailKey(e) { if (e.key === 'Enter') sendCode() }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card login-modal" onClick={e => e.stopPropagation()}>
+    <AnimatePresence>
+      {visible && (
+    <motion.div
+      className="modal-backdrop"
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        className="modal-card login-modal"
+        onClick={e => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.93, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 24 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+      >
 
         {/* Header */}
         <div className="login-modal-header">
@@ -230,8 +245,10 @@ function LoginModal({ visible, initialEmail, onClose, onSendCode, onVerifyCode, 
           </div>
         )}
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 

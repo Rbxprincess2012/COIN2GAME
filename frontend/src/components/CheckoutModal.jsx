@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../api'
 import { API_BASE } from '../config.js'
 
@@ -389,11 +390,25 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
 
   useEffect(() => { return () => stopPolling() }, [stopPolling])
 
-  if (!visible) return null
-
   return (
-    <div className="modal-backdrop" onClick={step === 'paying' ? undefined : handleClose}>
-      <div className="modal-card checkout-modal" onClick={e => e.stopPropagation()}>
+    <AnimatePresence>
+      {visible && (
+    <motion.div
+      className="modal-backdrop"
+      onClick={step === 'paying' ? undefined : handleClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
+        className="modal-card checkout-modal"
+        onClick={e => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.93, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 24 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+      >
 
         {/* ── Summary ──────────────────────────────────────────────── */}
         {step === 'summary' && (
@@ -600,7 +615,9 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
           </div>
         )}
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
