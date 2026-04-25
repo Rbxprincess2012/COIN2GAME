@@ -786,60 +786,6 @@ router.post('/wb/push-account-prices', async (req, res) => {
 })
 
 
-// Diagnostic: count products with wb_nmid in DB
-router.get('/wb/nmid-stats', async (req, res) => {
-  try {
-    const r = await pool.query(`
-      SELECT COUNT(*) as total,
-             COUNT(wb_nmid) as with_nmid,
-             MIN(wb_nmid) as min_nmid, MAX(wb_nmid) as max_nmid
-      FROM products WHERE wb_nmid IS NOT NULL
-    `)
-    const sample = await pool.query(`
-      SELECT product_id, name, wb_nmid, wb_article
-      FROM products WHERE wb_nmid IS NOT NULL
-      ORDER BY wb_nmid LIMIT 10
-    `)
-    res.json({ stats: r.rows[0], sample: sample.rows })
-  } catch (e) { res.status(500).json({ error: e.message }) }
-})
-
-// Diagnostic: list goods from a WB account
-router.get('/wb/account-goods', async (req, res) => {
-  try {
-    const { token_key = 'marina' } = req.query
-    const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wb_marina_token','wb_tatyana_token')`)
-    const s = {}
-    for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
-    const token = token_key === 'marina' ? s['wb_marina_token'] : s['wb_tatyana_token']
-    if (!token) return res.status(400).json({ error: `No token for ${token_key}` })
-
-    const r = await fetch('https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=20&offset=0', {
-      headers: { Authorization: token }
-    })
-    const rawText = await r.text()
-    let data
-    try { data = JSON.parse(rawText) } catch { return res.json({ wbStatus: r.status, rawPreview: rawText.slice(0, 300) }) }
-    if (!r.ok || data.error) return res.json({ wbStatus: r.status, wbError: data.error || data, rawPreview: rawText.slice(0, 300) })
-
-    const goods = (data?.data?.listGoods || []).map(g => ({
-      nmID: g.nmID, vendorCode: g.vendorCode, price: g.sizes?.[0]?.price, discount: g.discount
-    }))
-
-    // Check which of these nmIDs are in DB
-    const dbRes = await pool.query(
-      `SELECT wb_nmid, wb_article, name FROM products WHERE wb_nmid::text = ANY($1::text[])`,
-      [goods.map(g => String(g.nmID))]
-    )
-    const dbMap = {}
-    for (const p of dbRes.rows) dbMap[String(p.wb_nmid)] = { article: p.wb_article, name: p.name }
-
-    res.json({
-      total: data?.data?.total,
-      sample: goods.map(g => ({ ...g, inDB: dbMap[String(g.nmID)] || null }))
-    })
-  } catch (e) { res.status(500).json({ error: e.message }) }
-})
 
 router.post('/wb/reset-ggsell/:id', async (req, res) => {
   try {
