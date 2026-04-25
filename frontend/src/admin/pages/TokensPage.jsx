@@ -8,6 +8,7 @@ const TOKEN_FIELDS = [
   { key: 'token_cloudpayments_secret', label: 'CloudPayments — Secret Key', hint: 'Секретный ключ мерчанта CloudPayments' },
   { key: 'token_bybit',       label: 'Bybit API Key',                hint: 'API-ключ Bybit' },
   { key: 'token_bybit_secret', label: 'Bybit API Secret',            hint: 'Секрет Bybit' },
+  { key: 'ggsell_api_key',    label: 'GGSell — API Key',             hint: 'X-API-Key для api.g-engine.net — второй поставщик товаров' },
   { key: 'token_custom_1',    label: 'Дополнительный токен 1',       hint: '' },
   { key: 'token_custom_2',    label: 'Дополнительный токен 2',       hint: '' },
 ]

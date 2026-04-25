@@ -99,6 +99,17 @@ export async function initDb() {
     CREATE SEQUENCE IF NOT EXISTS order_seq START 10001;
   `)
 
+  // GGSell denomination mapping
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS ggsell_denomination_id INTEGER;
+  `)
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS ggsell_price NUMERIC(12,4);
+  `)
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier TEXT DEFAULT 'fp';
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,

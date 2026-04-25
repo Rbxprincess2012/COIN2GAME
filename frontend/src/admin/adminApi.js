@@ -63,6 +63,7 @@ export const adminApi = {
   syncWbCommissions: () => req('POST', '/wb/sync-commissions'),
   syncWbArticles: () => req('POST', '/wb/sync-articles'),
   syncWbPrices: () => req('POST', '/wb/sync-prices'),
+  syncGGSellPrices: () => req('POST', '/ggsell/sync-prices'),
   pushWbGroupCards: (group, token_key) => req('POST', '/wb/push-group-cards', { group, token_key }),
   resetWbNmids: (group) => req('POST', '/wb/reset-nmids', group ? { group } : {}),
   downloadWbTemplate: async () => {

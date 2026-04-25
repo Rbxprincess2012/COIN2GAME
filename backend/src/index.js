@@ -9,7 +9,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import cron from 'node-cron'
 import { pool, initDb } from './db.js'
-import adminRoutes, { syncWbCommissions, syncWbArticles, syncProducts, syncGames, syncWbPrices } from './admin-routes.js'
+import adminRoutes, { syncWbCommissions, syncWbArticles, syncProducts, syncGames, syncWbPrices, syncGGSellPrices } from './admin-routes.js'
 
 dotenv.config()
 
@@ -97,28 +97,34 @@ app.get('/api/products', async (req, res) => {
     where.push(`(paused IS NULL OR paused = false)`)
     const clause = `WHERE ${where.join(' AND ')}`
     const result = await pool.query(
-      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image, sales_count
+      `SELECT product_id, name, group_name, region, price, markup, price_site, in_stock, product_type, description, image, sales_count, ggsell_price, supplier
        FROM products ${clause}
        ORDER BY sales_count DESC, group_name, price`,
       params
     )
 
     const markupMap = await getMarkupMap()
-    const products = result.rows.map(p => ({
+    const products = result.rows.map(p => {
+      // Используем GGSell цену как себестоимость если товар привязан к GGSell
+      const effectiveCost = (p.supplier === 'gg' && p.ggsell_price) ? p.ggsell_price : p.price
+      const sitePrice = p.price_site != null
+        ? Math.ceil(parseFloat(p.price_site))
+        : applyMarkup(effectiveCost, p.group_name, p.markup, markupMap)
+      return ({
       id: p.product_id,
       title: p.name,
       service: p.group_name,
       platform: p.group_name,
       category: 'Цифровые товары',
-      price: p.price_site != null ? Math.round(parseFloat(p.price_site)) : applyMarkup(p.price, p.group_name, p.markup, markupMap),
-      base_price: parseFloat(p.price),
+      price: sitePrice,
+      base_price: parseFloat(effectiveCost),
       region: p.region || 'Любой',
       description: p.description || '',
       image: p.image || null,
       in_stock: p.in_stock,
       product_type: p.product_type,
       badge: null,
-    }))
+    })})
 
     res.json({ products })
   } catch (error) {
@@ -656,6 +662,14 @@ cron.schedule('0 * * * *', async () => {
   } catch (e) {
     console.error('[cron] FP sync failed:', e.message)
   }
+  // GGSell prices update after FP sync
+  try {
+    const gg = await syncGGSellPrices()
+    console.log(`[cron] GGSell prices OK: matched=${gg.matched} updated=${gg.updated} rate=${gg.rate}`)
+  } catch (e) {
+    console.error('[cron] GGSell prices failed:', e.message)
+  }
+
   // WB price push disabled in cron — run manually from admin when needed
   // console.log('[cron] WB prices push starting...')
 })

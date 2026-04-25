@@ -288,6 +288,100 @@ router.post('/games/sync', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+// ── GGSell price sync ────────────────────────────────────────────────────────
+
+export async function syncGGSellPrices() {
+  const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('ggsell_api_key')`)
+  const s = {}
+  for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
+  const apiKey = s['ggsell_api_key'] || process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+
+  // Курс ЦБ РФ
+  const cbrRes = await fetch('https://www.cbr-xml-daily.ru/daily_json.js')
+  const cbr = await cbrRes.json()
+  const rate = cbr.Valute.USD.Value
+
+  // Все GGSell продукты
+  let offset = 0, ggAll = []
+  while (true) {
+    const r = await fetch(`https://api.g-engine.net/v2.1/shop/products?limit=25&offset=${offset}`, {
+      headers: { 'X-API-Key': apiKey }
+    })
+    const d = await r.json()
+    if (!d.success) throw new Error('GGSell API error: ' + d.message)
+    const items = d.data?.items || []
+    ggAll.push(...items)
+    if (ggAll.length >= d.data?.total || items.length === 0) break
+    offset += 25
+  }
+
+  // Загружаем номиналы параллельно
+  const ggDenoms = {}
+  await Promise.all(ggAll.map(async p => {
+    const r = await fetch(`https://api.g-engine.net/v2.1/shop/denominations/${p.id}`, {
+      headers: { 'X-API-Key': apiKey }
+    })
+    const d = await r.json()
+    ggDenoms[p.id] = { product: p, denoms: (d.data || []).filter(x => x.stock > 0) }
+  }))
+
+  // Все наши товары из БД
+  const prodRes = await pool.query(`SELECT product_id, name FROM products WHERE in_stock = true AND (paused IS NULL OR paused = false)`)
+
+  let matched = 0, updated = 0
+
+  for (const prod of prodRes.rows) {
+    const name = prod.name.toUpperCase()
+
+    // Ищем GGSell номинал по совпадению числа и валюты в имени товара
+    let bestDenom = null
+    let bestProduct = null
+
+    for (const { product: ggProd, denoms } of Object.values(ggDenoms)) {
+      for (const denom of denoms) {
+        const val = (denom.value || '').toUpperCase()
+        const m = val.match(/^(\d+(?:\.\d+)?)\s+([A-Z]+)$/)
+        if (!m) continue
+        const [, amt, cur] = m
+        // Точное совпадение суммы и валюты в имени нашего товара
+        if (name.includes(' ' + amt + ' ') && name.includes(cur)) {
+          // Берём ближайшее по сумме USD (не дороже FP)
+          const ggRub = denom.price * rate
+          if (!bestDenom || ggRub < bestDenom.price * rate) {
+            bestDenom = denom
+            bestProduct = ggProd
+          }
+        }
+      }
+    }
+
+    if (bestDenom) {
+      matched++
+      const ggRub = bestDenom.price * rate
+      // Обновляем: сохраняем GGSell цену и denomination_id, ставим supplier=gg
+      await pool.query(
+        `UPDATE products SET ggsell_denomination_id=$1, ggsell_price=$2, supplier='gg', updated_at=NOW() WHERE product_id=$3`,
+        [bestDenom.id, ggRub, prod.product_id]
+      )
+      updated++
+    }
+  }
+
+  // Товары без совпадения — возвращаем на fp
+  await pool.query(`
+    UPDATE products SET supplier='fp', ggsell_denomination_id=NULL, ggsell_price=NULL
+    WHERE ggsell_denomination_id IS NULL AND supplier='gg'
+  `)
+
+  await log('GGSELL_PRICE_SYNC', null, null, { matched, updated, rate: rate.toFixed(2) })
+  return { ok: true, matched, updated, rate: rate.toFixed(2) }
+}
+
+router.post('/ggsell/sync-prices', async (req, res) => {
+  try { res.json(await syncGGSellPrices()) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 // ── GGSell proxy ──────────────────────────────────────────────────────────────
 
 router.get('/ggsell/products', async (req, res) => {
