@@ -684,6 +684,14 @@ cron.schedule('20 3 * * *', async () => {
 
 // ── Health check ─────────────────────────────────────────────────────────────
 
+app.get('/api/myip', async (req, res) => {
+  try {
+    const r = await fetch('https://api.ipify.org?format=json')
+    const data = await r.json()
+    res.json(data)
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1')
