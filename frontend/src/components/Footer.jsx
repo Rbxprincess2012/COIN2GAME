@@ -1,3 +1,31 @@
+import { useState } from 'react'
+
+const SUPPORT_EMAIL = 'info@coin2game.space'
+
+function SupportContact() {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard.writeText(SUPPORT_EMAIL).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="support-contact">
+      <span className="support-label">Служба поддержки</span>
+      <div className="support-email-row">
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="support-email">{SUPPORT_EMAIL}</a>
+        <button className="support-copy-btn" onClick={handleCopy} title="Скопировать email">
+          {copied ? '✓' : '⎘'}
+        </button>
+      </div>
+      <span className="support-hint">Ответим в течение 24 часов</span>
+    </div>
+  )
+}
+
 function Footer() {
   return (
     <footer className="site-footer">
@@ -52,6 +80,8 @@ function Footer() {
             <p>Банковские карты (Visa, MasterCard, МИР), криптовалюта и СБП.</p>
           </details>
         </div>
+
+        <SupportContact />
       </section>
 
       <div className="footer-bottom">
