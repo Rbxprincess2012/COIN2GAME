@@ -15,13 +15,22 @@ function extractResult(info) {
   return null
 }
 
+const FIELD_HINTS = {
+  player_id: 'Ваш игровой ID — найдите в профиле игры',
+  user_id:   'Ваш игровой ID — найдите в профиле игры',
+  character_id: 'ID персонажа из игры',
+  server:    'Выберите сервер вашего аккаунта',
+}
+
 // Render topup form field
 function TopupField({ field, value, onChange }) {
   if (field.name === 'product_id') return null
+  const hint = FIELD_HINTS[field.name]
   if (field.type === 'options') {
     return (
       <label className="topup-field">
         <span>{field.label || field.name}</span>
+        {hint && <span className="topup-field-hint">{hint}</span>}
         <select value={value || ''} onChange={e => onChange(field.name, e.target.value)}>
           <option value="">— выберите —</option>
           {(field.options || []).map(opt => (
@@ -34,10 +43,11 @@ function TopupField({ field, value, onChange }) {
   return (
     <label className="topup-field">
       <span>{field.label || field.name}</span>
+      {hint && <span className="topup-field-hint">{hint}</span>}
       <input
         type={field.type === 'password' ? 'password' : 'text'}
         value={value || ''}
-        placeholder={field.label || field.name}
+        placeholder={field.placeholder || field.label || field.name}
         onChange={e => onChange(field.name, e.target.value)}
       />
     </label>
@@ -298,9 +308,41 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     setLoadingForm(true)
     try {
       const data = await api.fpGroupForm(currentItem.service)
-      const fields = (data.forms?.topup_fields || []).filter(f => f.name !== 'product_id')
-      setTopupFields(fields)
-      setStep('topup-form')
+      const allFields = data.forms?.topup_fields || []
+
+      // Авто-заполняем: region с 1 вариантом, email, product_id
+      const autoValues = {}
+      const visibleFields = []
+
+      for (const f of allFields) {
+        if (f.name === 'product_id') {
+          // Ищем соответствующий вариант по нашему product_id
+          const match = (f.options || []).find(o => String(o.value) === String(currentItem.id))
+          autoValues[f.name] = match ? match.value : (f.options?.[0]?.value ?? '')
+          continue
+        }
+        if (f.name === 'email') {
+          autoValues[f.name] = userEmail
+          continue
+        }
+        if (f.type === 'options' && (f.options || []).length === 1) {
+          autoValues[f.name] = f.options[0].value
+          continue
+        }
+        visibleFields.push(f)
+      }
+
+      setTopupValues(v => ({ ...autoValues, ...v }))
+
+      if (visibleFields.length === 0) {
+        // Все поля авто-заполнены — сразу к оплате
+        pendingTopupData.current = autoValues
+        if (cpAvailable) openCpWidget(autoValues)
+        else createOrderSbp(autoValues)
+      } else {
+        setTopupFields(visibleFields)
+        setStep('topup-form')
+      }
     } catch {
       setError('Не удалось загрузить форму товара')
       setStep('error')

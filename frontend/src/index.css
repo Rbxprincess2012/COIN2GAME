@@ -1404,6 +1404,14 @@ button {
   border-color: rgba(134,95,255,0.5);
 }
 
+.topup-field-hint {
+  font-size: 0.75rem !important;
+  color: rgba(146,162,212,0.6) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-style: italic;
+}
+
 .topup-field select option {
   background: #0f1b33;
 }
