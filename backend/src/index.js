@@ -15,7 +15,7 @@ dotenv.config()
 
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import nodemailer from 'nodemailer'
+// nodemailer removed — using Resend HTTP API instead (Timeweb blocks SMTP ports)
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -205,37 +205,36 @@ app.get('/api/groups', async (req, res) => {
 // In-memory code store: { email → { code, expires } }
 const codeSessions = new Map()
 
-function getMailTransport() {
-  const user = process.env.YANDEX_EMAIL
-  const pass = process.env.YANDEX_APP_PASSWORD
-  if (!user || !pass) return null
-  return nodemailer.createTransport({
-    host: 'smtp.yandex.ru',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: { user, pass },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  })
-}
-
 async function sendCodeEmail(email, code) {
-  const transport = getMailTransport()
-  if (!transport) throw new Error('SMTP не настроен')
-  await transport.sendMail({
-    from: `"COIN2GAME" <${process.env.YANDEX_EMAIL}>`,
-    to: email,
-    subject: `Ваш код входа: ${code}`,
-    html: `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;background:#f5f5ff;padding:32px;border-radius:16px">
-      <h2 style="color:#865fff;margin:0 0 16px">COIN2GAME</h2>
-      <p style="color:#444;margin:0 0 20px">Ваш код для входа:</p>
-      <div style="font-size:48px;font-weight:800;letter-spacing:16px;color:#1a0a2e;background:#fff;padding:20px;border-radius:12px;text-align:center;border:2px solid #865fff">${code}</div>
-      <p style="color:#888;font-size:13px;margin-top:16px">Код действителен 10 минут.</p>
-    </div>`,
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) throw new Error('RESEND_API_KEY не задан')
+
+  const from = process.env.MAIL_FROM || 'COIN2GAME <noreply@coin2game.space>'
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: `Ваш код входа: ${code}`,
+      html: `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;background:#f5f5ff;padding:32px;border-radius:16px">
+        <h2 style="color:#865fff;margin:0 0 16px">COIN2GAME</h2>
+        <p style="color:#444;margin:0 0 20px">Ваш код для входа:</p>
+        <div style="font-size:48px;font-weight:800;letter-spacing:16px;color:#1a0a2e;background:#fff;padding:20px;border-radius:12px;text-align:center;border:2px solid #865fff">${code}</div>
+        <p style="color:#888;font-size:13px;margin-top:16px">Код действителен 10 минут.</p>
+      </div>`,
+    }),
   })
-  console.log(`[mail] code sent to ${email}`)
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || `Resend API error ${res.status}`)
+  }
+  console.log(`[mail] code sent to ${email} via Resend`)
 }
 
 app.post('/api/auth/send-code', async (req, res) => {
@@ -573,15 +572,21 @@ function orderEmailHtml({ orderNumber, productName, activationCode, instructions
 }
 
 async function sendOrderEmail({ email, orderNumber, productName, activationCode, instructions }) {
-  const transport = getMailTransport()
-  if (!transport) return
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return
   try {
-    await transport.sendMail({
-      from: `"COIN2GAME" <${process.env.YANDEX_EMAIL}>`,
-      to: email,
-      subject: `Заказ №${orderNumber} — ваш код активации`,
-      html: orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }),
+    const from = process.env.MAIL_FROM || 'COIN2GAME <noreply@coin2game.space>'
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from, to: [email],
+        subject: `Заказ №${orderNumber} — ваш код активации`,
+        html: orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }),
+      }),
     })
+    if (!res.ok) throw new Error(await res.text())
+    console.log(`[mail] order email sent to ${email}`)
   } catch (e) {
     console.error('[mail] order email failed:', e.message)
   }
