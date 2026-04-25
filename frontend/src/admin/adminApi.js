@@ -50,8 +50,11 @@ export const adminApi = {
       req('POST', '/products/sync'),
       req('POST', '/games/sync'),
     ])
-    const wb = await req('POST', '/wb/sync-prices')
-    return { products, games, wb }
+    const [wb, gg] = await Promise.all([
+      req('POST', '/wb/sync-prices'),
+      req('POST', '/ggsell/sync-prices'),
+    ])
+    return { products, games, wb, gg }
   },
   pauseProducts: (ids, paused) => req('POST', '/products/pause', { ids, paused }),
 

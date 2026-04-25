@@ -519,9 +519,6 @@ export default function ProductsPage() {
           <button className="a-btn a-btn--primary" onClick={handleSync} disabled={syncing}>
             {syncing ? 'Синхронизация...' : '↻ Синхронизировать с API'}
           </button>
-          <button className="a-btn a-btn--ghost" onClick={handleSyncGGSell} disabled={syncing} title="Обновить себестоимость из GGSell по курсу ЦБ">
-            ↻ GGSell цены
-          </button>
           <button
             className={shopStopped ? 'a-btn a-btn--success' : 'a-btn a-btn--danger'}
             onClick={handleToggleShop}
@@ -543,13 +540,12 @@ export default function ProductsPage() {
         <div className={`a-alert a-alert--${syncResult.error ? 'error' : 'success'}`}>
           {syncResult.error
             ? `Ошибка: ${syncResult.error}`
-            : syncResult.gg
-              ? `GGSell: обновлено ${syncResult.gg.updated} товаров из ${syncResult.gg.matched} совпадений · курс ₽${syncResult.gg.rate}/$`
-              : (<>
+            : (<>
                   Товары: {syncResult.products?.updated ?? 0} обновлено, {syncResult.products?.inserted ?? 0} добавлено из {syncResult.products?.total ?? 0}
                   {syncResult.products?.autoPaused > 0 && ` · пауза: ${syncResult.products.autoPaused}`}
                   {' · '}Игры: {syncResult.games?.updated ?? 0} / {syncResult.games?.total ?? 0}
                   {syncResult.wb && ` · WB: загружено ${syncResult.wb.pushed ?? 0} цен`}
+                  {syncResult.gg && ` · GGSell: ${syncResult.gg.updated ?? 0} позиций по ₽${syncResult.gg.rate}/$`}
                 </>)
           }
         </div>

@@ -299,7 +299,7 @@ export async function syncGGSellPrices() {
   // Курс ЦБ РФ
   const cbrRes = await fetch('https://www.cbr-xml-daily.ru/daily_json.js')
   const cbr = await cbrRes.json()
-  const rate = cbr.Valute.USD.Value
+  const rate = cbr.Valute.USD.Value * 1.07  // ЦБ + 7% конвертационная наценка
 
   // Все GGSell продукты
   let offset = 0, ggAll = []
