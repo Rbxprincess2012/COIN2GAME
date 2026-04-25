@@ -707,26 +707,26 @@ async function pushAccountPrices(token_key = 'marina') {
     await delay(700)
   }
 
-  if (!allGoods.length) return { ok: true, pushed: 0, message: 'Нет товаров в WB' }
+  if (!allGoods.length) return { ok: true, pushed: 0, total_wb: 0, message: 'Нет товаров в WB' }
 
-  const nmIDs = allGoods.map(g => g.nmID)
+  const nmIDs = allGoods.map(g => String(g.nmID))
   const dbRes = await pool.query(
     `SELECT product_id, price, price_wb, ggsell_price, supplier, wb_nmid
-     FROM products WHERE wb_nmid = ANY($1)`, [nmIDs]
+     FROM products WHERE wb_nmid::text = ANY($1::text[])`, [nmIDs]
   )
   const dbMap = {}
-  for (const p of dbRes.rows) dbMap[Number(p.wb_nmid)] = p
+  for (const p of dbRes.rows) dbMap[String(p.wb_nmid)] = p
 
   const updates = []
   for (const g of allGoods) {
-    const p = dbMap[g.nmID]
+    const p = dbMap[String(g.nmID)]
     if (!p) continue
     const cost = (p.supplier === 'gg' && p.ggsell_price) ? parseFloat(p.ggsell_price) : parseFloat(p.price)
     const newPrice = p.price_wb != null ? Math.ceil(parseFloat(p.price_wb)) : Math.ceil(cost * factor)
     updates.push({ nmID: g.nmID, price: newPrice })
   }
 
-  if (!updates.length) return { ok: true, pushed: 0, matched: 0, message: 'Совпадений в БД не найдено' }
+  if (!updates.length) return { ok: true, pushed: 0, matched: 0, total_wb: allGoods.length, message: 'Совпадений в БД не найдено' }
 
   let pushed = 0, errors = 0
   for (let i = 0; i < updates.length; i += 1000) {
