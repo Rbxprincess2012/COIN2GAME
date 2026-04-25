@@ -670,8 +670,15 @@ export async function syncWbPrices() {
 }
 
 router.post('/wb/sync-prices', async (req, res) => {
-  try { res.json(await syncWbPrices()) }
-  catch (e) { res.status(500).json({ error: e.message }) }
+  try {
+    res.json({ ok: true, message: 'Запущено в фоне, проверьте логи WB_PRICES_SYNC' })
+    syncWbPrices()
+      .then(r => console.log('[WB sync-prices]', JSON.stringify(r)))
+      .catch(e => {
+        console.error('[WB sync-prices] failed:', e.message)
+        log('WB_PRICES_ERROR', null, null, { error: e.message }).catch(() => {})
+      })
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 // Push prices to specific WB account for goods already listed there
