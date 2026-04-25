@@ -29,24 +29,35 @@ function Logo() {
 
 function UserMenu({ userEmail, onLogout }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const btnRef = useRef(null)
 
   useEffect(() => {
-    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    function handler(e) {
+      if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 8, right: window.innerWidth - r.right })
+    }
+    setOpen(v => !v)
+  }
+
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button className="btn-user-logged" onClick={() => setOpen(v => !v)}>
+    <div ref={btnRef}>
+      <button className="btn-user-logged" onClick={toggle}>
         <span className="btn-user-dot" />
         {userEmail.split('@')[0]}
         <span style={{ fontSize: '0.6rem', opacity: 0.6, marginLeft: 2 }}>▾</span>
       </button>
 
       {open && (
-        <div className="user-dropdown">
+        <div className="user-dropdown" style={{ position: 'fixed', top: pos.top, right: pos.right }}>
           <div className="user-dropdown-email">{userEmail}</div>
           <button className="user-dropdown-logout" onClick={() => { setOpen(false); onLogout() }}>
             Выйти

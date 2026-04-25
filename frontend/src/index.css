@@ -187,16 +187,13 @@ button {
 }
 
 .user-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
   min-width: 200px;
-  background: #0d1e35;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #07111f;
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
-  z-index: 200;
+  box-shadow: 0 20px 48px rgba(0,0,0,0.7);
+  z-index: 9999;
 }
 
 .user-dropdown-email {
