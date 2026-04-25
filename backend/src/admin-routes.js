@@ -344,8 +344,10 @@ export async function syncGGSellPrices() {
         const m = val.match(/^(\d+(?:\.\d+)?)\s+([A-Z]+)$/)
         if (!m) continue
         const [, amt, cur] = m
-        // Точное совпадение суммы и валюты в имени нашего товара
-        if (name.includes(' ' + amt + ' ') && name.includes(cur)) {
+        // Точное совпадение: число не должно быть частью большего числа
+        // Например "60 UC" не должно матчить "600 + 60 UC" как основное значение
+        const amtRe = new RegExp('(?<![0-9])' + amt.replace('.', '\\.') + '(?![0-9])\\s*' + cur)
+        if (amtRe.test(name) && !new RegExp('[0-9]\\s*\\+\\s*' + amt + '\\s*' + cur).test(name)) {
           // Берём ближайшее по сумме USD (не дороже FP)
           const ggRub = denom.price * rate
           if (!bestDenom || ggRub < bestDenom.price * rate) {
@@ -754,6 +756,16 @@ router.post('/wb/push-account-prices', async (req, res) => {
     console.error('[WB push-account-prices]', e)
     res.status(500).json({ error: e.message })
   }
+})
+
+router.post('/wb/reset-ggsell/:id', async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE products SET ggsell_denomination_id=NULL, ggsell_price=NULL, supplier='fp' WHERE product_id=$1`,
+      [req.params.id]
+    )
+    res.json({ ok: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 router.post('/wb/reset-nmids', async (req, res) => {
