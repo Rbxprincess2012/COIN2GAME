@@ -221,12 +221,73 @@ async function sendCodeEmail(email, code) {
       from,
       to: [email],
       subject: `Ваш код входа: ${code}`,
-      html: `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;background:#f5f5ff;padding:32px;border-radius:16px">
-        <h2 style="color:#865fff;margin:0 0 16px">COIN2GAME</h2>
-        <p style="color:#444;margin:0 0 20px">Ваш код для входа:</p>
-        <div style="font-size:48px;font-weight:800;letter-spacing:16px;color:#1a0a2e;background:#fff;padding:20px;border-radius:12px;text-align:center;border:2px solid #865fff">${code}</div>
-        <p style="color:#888;font-size:13px;margin-top:16px">Код действителен 10 минут.</p>
-      </div>`,
+      html: `<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#07091d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#07091d;padding:40px 16px">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%">
+
+        <!-- Logo -->
+        <tr><td style="padding:0 0 28px;text-align:center">
+          <div style="font-size:26px;font-weight:900;letter-spacing:0.04em">
+            <span style="color:#f58f1b">COIN</span><span style="color:#865fff">2</span><span style="color:#e8ecff">GAME</span>
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:rgba(232,236,255,0.35);letter-spacing:0.14em;text-transform:uppercase">Цифровые коды · Мгновенная доставка</div>
+        </td></tr>
+
+        <!-- Card -->
+        <tr><td style="background:#0d1424;border-radius:24px;border:1px solid rgba(255,255,255,0.07);overflow:hidden">
+          <table width="100%" cellpadding="0" cellspacing="0">
+
+            <!-- Gradient top bar -->
+            <tr><td style="background:linear-gradient(90deg,#865fff,#f58f1b);height:3px;line-height:3px;font-size:0">&nbsp;</td></tr>
+
+            <!-- Header -->
+            <tr><td style="padding:32px 40px 20px">
+              <div style="font-size:20px;font-weight:700;color:#e8ecff;margin-bottom:6px">Код для входа</div>
+              <div style="font-size:13px;color:rgba(232,236,255,0.4)">Введите этот код на сайте, чтобы войти в аккаунт</div>
+            </td></tr>
+
+            <!-- Divider -->
+            <tr><td style="padding:0 40px"><div style="height:1px;background:rgba(255,255,255,0.06)"></div></td></tr>
+
+            <!-- Code -->
+            <tr><td style="padding:28px 40px">
+              <div style="background:#111827;border-radius:16px;border:1px solid rgba(134,95,255,0.3);padding:28px 24px;text-align:center">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:rgba(134,95,255,0.7);margin-bottom:16px;font-weight:600">Код подтверждения</div>
+                <div style="font-size:52px;font-weight:900;letter-spacing:0.22em;color:#f4c06a;font-family:'Courier New',Courier,monospace;line-height:1">${code}</div>
+                <div style="margin-top:16px;font-size:12px;color:rgba(232,236,255,0.3)">Действителен 10 минут · Не сообщайте никому</div>
+              </div>
+            </td></tr>
+
+            <!-- Support -->
+            <tr><td style="padding:0 40px 32px">
+              <div style="background:rgba(255,255,255,0.03);border-radius:12px;padding:14px 20px">
+                <div style="font-size:13px;color:rgba(232,236,255,0.4);line-height:1.6">
+                  Если вы не запрашивали код — просто проигнорируйте это письмо.
+                  Вопросы: <a href="mailto:info@coin2game.space" style="color:#865fff;text-decoration:none">info@coin2game.space</a>
+                </div>
+              </div>
+            </td></tr>
+
+          </table>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:24px 0;text-align:center">
+          <div style="font-size:12px;color:rgba(232,236,255,0.2);line-height:1.8">
+            © 2026 COIN2GAME &nbsp;·&nbsp;
+            <a href="https://coin2game.space" style="color:rgba(134,95,255,0.5);text-decoration:none">coin2game.space</a>
+          </div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
     }),
   })
 
