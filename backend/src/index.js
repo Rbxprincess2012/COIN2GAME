@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '2mb' }))
 
 // Static media files (product images for WB)
 app.use('/media', express.static(join(__dirname, '..', 'media')))
@@ -123,6 +123,7 @@ app.get('/api/products', async (req, res) => {
       image: p.image || null,
       in_stock: p.in_stock,
       product_type: p.product_type,
+      supplier: p.supplier || 'fp',
       badge: null,
     })})
 
@@ -158,6 +159,7 @@ app.get('/api/product/:id', async (req, res) => {
       image: p.image || null,
       in_stock: p.in_stock,
       product_type: p.product_type,
+      supplier: p.supplier || 'fp',
     })
   } catch (e) {
     res.status(500).json({ error: e.message })
@@ -404,6 +406,10 @@ app.get('/api/fp/group-form', async (req, res) => {
 // 4.2 Покупка ваучера (VOUCHER) — создаёт платёжную ссылку
 app.post('/api/fp/voucher/buy', async (req, res) => {
   try {
+    const prod = await pool.query('SELECT supplier FROM products WHERE product_id=$1', [String(req.body.product_id)])
+    if (prod.rows[0]?.supplier === 'gg') {
+      return res.status(400).json({ error: 'Этот товар доступен только при оплате картой', code: 'GG_CARD_ONLY' })
+    }
     const data = await fpPost(FP_PROXY, { path: '/voucher/buy', request: req.body })
     res.json(data)
   } catch (e) {
@@ -424,6 +430,10 @@ app.post('/api/fp/voucher/deposit', async (req, res) => {
 // 4.3 Пополнение аккаунта TOPUP — создаёт платёжную ссылку
 app.post('/api/fp/topup/buy', async (req, res) => {
   try {
+    const prod = await pool.query('SELECT supplier FROM products WHERE product_id=$1', [String(req.body.product_id)])
+    if (prod.rows[0]?.supplier === 'gg') {
+      return res.status(400).json({ error: 'Этот товар доступен только при оплате картой', code: 'GG_CARD_ONLY' })
+    }
     const data = await fpPost(FP_PROXY, { path: '/topup/check', request: req.body })
     res.json(data)
   } catch (e) {
