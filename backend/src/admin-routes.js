@@ -606,9 +606,9 @@ export async function syncWbPrices() {
   const wbDeduct = wbCommission + tax
   const factor = (1 + targetMargin / 100) / (1 - wbDeduct / 100)
 
-  // Load all products linked to WB
+  // Load all products linked to WB (include supplier/ggsell_price for correct cost basis)
   const pRes = await pool.query(`
-    SELECT product_id, price, price_wb, wb_nmid, wb_article
+    SELECT product_id, price, price_wb, ggsell_price, supplier, wb_nmid, wb_article
     FROM products
     WHERE wb_nmid IS NOT NULL AND (paused IS NULL OR paused = false) AND in_stock = true
   `)
@@ -621,9 +621,13 @@ export async function syncWbPrices() {
   if (marinaToken) byToken[marinaToken] = []
   if (tatyanaToken) byToken[tatyanaToken] = []
   for (const p of pRes.rows) {
+    // Use manual override → GGSell cost (if cheaper supplier) → FP cost
+    const cost = (p.supplier === 'gg' && p.ggsell_price)
+      ? parseFloat(p.ggsell_price)
+      : parseFloat(p.price)
     const price = p.price_wb != null
       ? Math.ceil(parseFloat(p.price_wb))
-      : Math.ceil(parseFloat(p.price) * factor)
+      : Math.ceil(cost * factor)
 
     const isTatyana = p.wb_article?.startsWith('TA-')
     const token = isTatyana ? tatyanaToken : marinaToken
