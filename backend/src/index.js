@@ -769,15 +769,27 @@ app.post('/api/cp/complete', async (req, res) => {
     const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
     const orderNumber = `CG-${seqRes.rows[0].num}`
 
-    // Получаем товар из БД (включая поставщика)
+    // Получаем товар из БД (включая поставщика и группу)
     const prodRes = await pool.query(
-      `SELECT name, price, supplier, ggsell_denomination_id FROM products WHERE product_id=$1`,
+      `SELECT name, price, supplier, ggsell_denomination_id, group_name FROM products WHERE product_id=$1`,
       [String(product_id)]
     )
     const productName = prodRes.rows[0]?.name || `Товар #${product_id}`
     const price = prodRes.rows[0]?.price || null
     const supplier = prodRes.rows[0]?.supplier || 'fp'
     const ggDenomId = prodRes.rows[0]?.ggsell_denomination_id
+    const groupName = prodRes.rows[0]?.group_name || null
+
+    // Инструкция по активации из настроек
+    let groupInstruction = null
+    if (groupName) {
+      try {
+        const instrRow = await pool.query(`SELECT value FROM settings WHERE key='group_instructions'`)
+        const instrMap = instrRow.rows[0]?.value
+          ? JSON.parse(instrRow.rows[0].value) : {}
+        groupInstruction = instrMap[groupName] || null
+      } catch {}
+    }
 
     let data, activationCode
 
@@ -834,7 +846,8 @@ app.post('/api/cp/complete', async (req, res) => {
 
     // Отправляем письмо с кодом
     if (activationCode && email) {
-      sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: null })
+      const emailInstruction = groupInstruction || data?.instruction || null
+      sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: emailInstruction })
     }
 
     res.json({ ...data, order_number: orderNumber })
