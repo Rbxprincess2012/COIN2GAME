@@ -28,7 +28,7 @@ async function log(type, product_id = null, product_name = null, details = {}) {
 router.get('/products', async (req, res) => {
   try {
     const { id, search, search_alt, group, region, product_type, in_stock, paused,
-            manual_price, margin_below, factor_site, factor_wb, wb_status,
+            manual_price, margin_below, factor_site, factor_wb, wb_status, wb_nmid_search,
             page = 1, limit = 50 } = req.query
     const offset = (Number(page) - 1) * Number(limit)
     const params = []
@@ -64,8 +64,12 @@ router.get('/products', async (req, res) => {
     if (paused === 'true') where.push(`paused = true`)
     if (paused === 'false') where.push(`(paused IS NULL OR paused = false)`)
     if (manual_price === 'true') where.push(`(price_site IS NOT NULL OR price_wb IS NOT NULL)`)
-    if (wb_status === 'has_wb')  where.push(`wb_article IS NOT NULL`)
-    if (wb_status === 'no_wb')   where.push(`wb_article IS NULL`)
+    if (wb_status === 'has_wb')  where.push(`wb_nmid IS NOT NULL`)
+    if (wb_status === 'no_wb')   where.push(`wb_nmid IS NULL`)
+    if (wb_nmid_search) {
+      params.push(`%${wb_nmid_search}%`)
+      where.push(`wb_nmid::text ILIKE $${params.length}`)
+    }
     if (margin_below === 'true' && factor_site && factor_wb) {
       params.push(Number(factor_site), Number(factor_wb))
       const fs = params.length - 1

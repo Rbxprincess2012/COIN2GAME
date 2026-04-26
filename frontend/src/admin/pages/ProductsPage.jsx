@@ -224,7 +224,7 @@ function MarginLine({ cost, sellPrice, deductionsPct, target }) {
   )
 }
 
-const EMPTY_FILTERS = { id: '', search: '', group: '', region: '', product_type: '', status: 'active', manual_price: '', margin_below: '', wb_status: '' }
+const EMPTY_FILTERS = { id: '', search: '', group: '', region: '', product_type: '', status: 'active', manual_price: '', margin_below: '', wb_status: '', wb_nmid: '' }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -289,7 +289,8 @@ export default function ProductsPage() {
       if (filters.status === 'out_of_stock') { params.in_stock = 'false' }
       if (filters.status === 'paused')       { params.paused   = 'true' }
       if (filters.manual_price)   params.manual_price   = filters.manual_price
-      if (filters.wb_status)      params.wb_status      = filters.wb_status
+      if (filters.wb_status)      params.wb_status        = filters.wb_status
+      if (filters.wb_nmid)        params.wb_nmid_search   = filters.wb_nmid
       if (filters.margin_below === 'true') {
         const ent = ENTREPRENEURS.find(e => e.key === entrepreneurKey) || ENTREPRENEURS[1]
         const tax = ent.taxRate
@@ -602,7 +603,7 @@ export default function ProductsPage() {
               <th>Себест.</th>
               <th style={{ width: 130 }}>Цена сайт</th>
               <th style={{ width: 130 }}>Цена ВБ</th>
-              <th style={{ width: 140 }}>Артикул ВБ</th>
+              <th style={{ width: 130 }}>Артикул ВБ</th>
               <th>Статус</th>
               <th></th>
             </tr>
@@ -648,11 +649,13 @@ export default function ProductsPage() {
                 )
               })}
               <td>
-                <select className="a-col-filter" value={filters.wb_status} onChange={e => setFilter('wb_status', e.target.value)}>
-                  <option value="">Все</option>
-                  <option value="has_wb">На ВБ</option>
-                  <option value="no_wb">Не на ВБ</option>
-                </select>
+                <input
+                  className="a-col-filter"
+                  placeholder="Артикул ВБ..."
+                  value={filters.wb_nmid}
+                  onChange={e => setFilter('wb_nmid', e.target.value)}
+                  style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
+                />
               </td>
               <td>
                 <select className="a-col-filter" value={filters.status} onChange={e => setFilter('status', e.target.value)}>
@@ -761,14 +764,14 @@ export default function ProductsPage() {
                         <MarginLine cost={cost} sellPrice={displayWb} deductionsPct={wbDeductions} target={settings.targetMargin} />
                       </td>
 
-                      {/* Артикул ВБ */}
-                      <td style={{ fontSize: '0.78rem' }}>
-                        {p.wb_article ? (
+                      {/* Артикул ВБ (nmid) */}
+                      <td>
+                        {p.wb_nmid ? (
                           <a
                             href={`https://www.wildberries.ru/catalog/${p.wb_nmid}/detail.aspx`}
                             target="_blank"
                             rel="noreferrer"
-                            title="Открыть на Wildberries"
+                            title={`Открыть на Wildberries · ${p.wb_article || ''}`}
                             style={{
                               color: '#a78bff',
                               textDecoration: 'none',
@@ -779,7 +782,7 @@ export default function ProductsPage() {
                             onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
                             onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
                           >
-                            {p.wb_article}
+                            {p.wb_nmid}
                           </a>
                         ) : (
                           <span className="a-muted" style={{ fontSize: '0.72rem' }}>—</span>
