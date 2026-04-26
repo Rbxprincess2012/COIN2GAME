@@ -42,15 +42,46 @@ function App() {
   const [platformProducts, setPlatformProducts] = useState([])
   const [platformLoading, setPlatformLoading] = useState(false)
 
-  useEffect(() => {
-    const productId = new URLSearchParams(window.location.search).get('product')
+  // ── URL-навигация ─────────────────────────────────────────────────────────
+
+  function pushUrl(params) {
+    const q = params ? '?' + new URLSearchParams(params).toString() : '/'
+    window.history.pushState(params || {}, '', q)
+  }
+
+  function restoreFromUrl() {
+    const p = new URLSearchParams(window.location.search)
+    const productId  = p.get('product')
+    const platformId = p.get('platform')
     if (productId) {
       fetch(`${API_BASE}/api/product/${encodeURIComponent(productId)}`)
         .then(r => r.ok ? r.json() : null)
-        .then(product => { if (product) goToProduct(product) })
+        .then(product => { if (product) { setSelectedProduct(product); setView('product') } })
         .catch(() => {})
-      window.history.replaceState({}, '', window.location.pathname)
+    } else if (platformId) {
+      setActivePlatform(platformId)
+      setView('platform')
+      setPlatformLoading(true)
+      fetch(`${API_BASE}/api/products?group=${encodeURIComponent(platformId)}&in_stock=true`)
+        .then(r => r.json())
+        .then(({ products }) => setPlatformProducts(products || []))
+        .catch(() => setPlatformProducts([]))
+        .finally(() => setPlatformLoading(false))
     }
+  }
+
+  useEffect(() => {
+    restoreFromUrl()
+    const onPop = () => {
+      const p = new URLSearchParams(window.location.search)
+      if (!p.has('product') && !p.has('platform')) {
+        setView('home'); setSelectedProduct(null); setActivePlatform(null); setSelectedGame(null)
+      } else {
+        restoreFromUrl()
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   useEffect(() => {
@@ -181,7 +212,10 @@ function App() {
     setView(activePlatform ? 'platform' : selectedGame ? 'game' : 'home')
   }
 
-  const goHome = () => { setView('home'); setActivePlatform(null); setSelectedProduct(null); setSelectedGame(null) }
+  const goHome = () => {
+    setView('home'); setActivePlatform(null); setSelectedProduct(null); setSelectedGame(null)
+    window.history.pushState({}, '', '/')
+  }
 
   const goToGame = (game) => {
     setSelectedGame(game)
@@ -192,12 +226,14 @@ function App() {
   const goBackFromGame = () => {
     setSelectedGame(null)
     setView('home')
+    window.history.pushState({}, '', '/')
   }
 
   const goToPlatform = async (service) => {
     setActivePlatform(service)
     setSelectedProduct(null)
     setView('platform')
+    pushUrl({ platform: service })
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setPlatformLoading(true)
     try {
@@ -211,12 +247,19 @@ function App() {
   const goToProduct = (product) => {
     setSelectedProduct(product)
     setView('product')
+    pushUrl({ product: product.id })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const goBackFromProduct = () => {
     setSelectedProduct(null)
-    setView(activePlatform ? 'platform' : 'home')
+    if (activePlatform) {
+      setView('platform')
+      pushUrl({ platform: activePlatform })
+    } else {
+      setView('home')
+      window.history.pushState({}, '', '/')
+    }
   }
 
   return (
