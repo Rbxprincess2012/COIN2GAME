@@ -28,7 +28,7 @@ async function log(type, product_id = null, product_name = null, details = {}) {
 router.get('/products', async (req, res) => {
   try {
     const { id, search, search_alt, group, region, product_type, in_stock, paused,
-            manual_price, margin_below, factor_site, factor_wb,
+            manual_price, margin_below, factor_site, factor_wb, wb_status,
             page = 1, limit = 50 } = req.query
     const offset = (Number(page) - 1) * Number(limit)
     const params = []
@@ -64,6 +64,8 @@ router.get('/products', async (req, res) => {
     if (paused === 'true') where.push(`paused = true`)
     if (paused === 'false') where.push(`(paused IS NULL OR paused = false)`)
     if (manual_price === 'true') where.push(`(price_site IS NOT NULL OR price_wb IS NOT NULL)`)
+    if (wb_status === 'has_wb')  where.push(`wb_article IS NOT NULL`)
+    if (wb_status === 'no_wb')   where.push(`wb_article IS NULL`)
     if (margin_below === 'true' && factor_site && factor_wb) {
       params.push(Number(factor_site), Number(factor_wb))
       const fs = params.length - 1
@@ -81,7 +83,7 @@ router.get('/products', async (req, res) => {
     params.push(Number(limit), offset)
     const result = await pool.query(
       `SELECT product_id, name, group_name, region, price, markup, price_site, price_wb, in_stock, paused, product_type, currency, description, updated_at,
-              ggsell_price, supplier
+              ggsell_price, supplier, wb_article, wb_nmid
        FROM products ${clause}
        ORDER BY group_name, name
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
