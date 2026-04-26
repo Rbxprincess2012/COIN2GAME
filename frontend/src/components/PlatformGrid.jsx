@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SERVICE_CONFIG } from '../config/services'
 
+// Russian pluralization word only: 1 → товар, 2-4 → товара, 5+ → товаров
+function itemWord(n) {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 19) return 'товаров'
+  if (mod10 === 1) return 'товар'
+  if (mod10 >= 2 && mod10 <= 4) return 'товара'
+  return 'товаров'
+}
+
 const FALLBACK_ACCENTS = ['#865fff','#865fff','#865fff','#865fff','#865fff','#865fff']
 
 function getGroupCfg(groupName, idx) {
@@ -51,7 +61,10 @@ function GroupTile({ g, idx, onSelectService }) {
       }
       <div className="platform-tile-info">
         <span className="platform-tile-name">{cfg.label || g.group}</span>
-        <span className="platform-tile-count">{g.available} товаров</span>
+        <span className="platform-tile-count">
+          <span className="platform-tile-count-num">{g.available}</span>
+          {' '}{itemWord(g.available)}
+        </span>
       </div>
       <div className="platform-tile-arrow">→</div>
     </motion.button>

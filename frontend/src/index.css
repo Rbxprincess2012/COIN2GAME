@@ -1829,13 +1829,26 @@ button {
 .platform-tile-count {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  gap: 3px;
+  padding: 2px 8px 2px 6px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
   font-size: 0.72rem;
-  color: var(--muted);
+  color: rgba(232,236,255,0.4);
   width: fit-content;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.platform-tile:hover .platform-tile-count {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.platform-tile-count-num {
+  font-weight: 700;
+  font-size: 0.76rem;
+  color: color-mix(in srgb, var(--ta, #865fff) 80%, #e8ecff);
 }
 
 .platform-tile-arrow {

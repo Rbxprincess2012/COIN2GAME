@@ -2,6 +2,14 @@ import { useMemo, useState } from 'react'
 import { SERVICE_CONFIG, getFlagUrl } from '../config/services'
 import ProductCard from './ProductCard'
 
+function itemWord(n) {
+  const m10 = n % 10, m100 = n % 100
+  if (m100 >= 11 && m100 <= 19) return 'товаров'
+  if (m10 === 1) return 'товар'
+  if (m10 >= 2 && m10 <= 4) return 'товара'
+  return 'товаров'
+}
+
 function FlagImg({ region }) {
   const url = getFlagUrl(region)
   if (!url) return <span className="region-tab-flag-fallback">🌍</span>
@@ -53,7 +61,13 @@ function PlatformPage({ service, groupMeta, products = [], loading, onBack, onSe
               {cfg.label}
             </h1>
             <p className="platform-page-subtitle">
-              {loading ? 'Загрузка...' : `${products.length} товаров · мгновенная доставка кода`}
+              {loading ? 'Загрузка...' : (
+                <>
+                  <span style={{ fontWeight: 700, color: cfg.accent }}>{products.length}</span>
+                  {' '}{itemWord(products.length)}
+                  {' · '}мгновенная доставка кода
+                </>
+              )}
             </p>
           </div>
         </div>
