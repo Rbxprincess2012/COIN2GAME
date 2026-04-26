@@ -354,6 +354,11 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   function handlePay() {
     if (!isLoggedIn) { onLogin(); return }
     const type = getType(currentItem)
+    if (currentItem.supplier === 'gg' && !cpAvailable) {
+      setError('Этот товар доступен только при оплате картой. Обратитесь к администратору.')
+      setStep('error')
+      return
+    }
     if (type === 'TOPUP') {
       loadTopupForm()
     } else if (cpAvailable) {
@@ -474,7 +479,9 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
                     })
                     const data = await res.json()
                     if (data.ok) {
-                      setItemResult({ type: 'code', code: data.code || data.voucher_code, instruction: 'Это тестовый заказ. Код не является реальным.' })
+                      const testNote = '⚠️ Это тестовый заказ. Код не является реальным.'
+                      const instruction = data.instruction ? `${testNote}\n\n${data.instruction}` : testNote
+                      setItemResult({ type: 'code', code: data.code || data.voucher_code, instruction })
                       setStep('done-item')
                     }
                   } catch {}

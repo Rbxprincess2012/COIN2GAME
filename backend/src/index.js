@@ -717,13 +717,22 @@ app.post('/api/test-purchase', async (req, res) => {
     const { product_id, email } = req.body
     if (!product_id || !email) return res.status(400).json({ error: 'product_id and email required' })
 
-    const prodRes = await pool.query(`SELECT name, price FROM products WHERE product_id=$1`, [String(product_id)])
+    const prodRes = await pool.query(`SELECT name, price, group_name FROM products WHERE product_id=$1`, [String(product_id)])
     const productName = prodRes.rows[0]?.name || `Товар #${product_id}`
+    const groupName = prodRes.rows[0]?.group_name || null
+
+    let groupInstruction = null
+    if (groupName) {
+      try {
+        const instrRow = await pool.query(`SELECT value FROM settings WHERE key='group_instructions'`)
+        const instrMap = instrRow.rows[0]?.value ? JSON.parse(instrRow.rows[0].value) : {}
+        groupInstruction = instrMap[groupName] || null
+      } catch {}
+    }
 
     const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
     const orderNumber = `CG-${seqRes.rows[0].num}`
 
-    // Генерируем тестовый код активации
     const activationCode = `TEST-${Math.random().toString(36).slice(2,6).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`
 
     await pool.query(
@@ -734,9 +743,11 @@ app.post('/api/test-purchase', async (req, res) => {
 
     pool.query(`UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`, [String(product_id)]).catch(() => {})
 
-    if (email) sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: 'Это тестовый заказ. Код активации не является реальным.' }).catch(() => {})
+    const testNote = '⚠️ Это тестовый заказ. Код активации не является реальным.'
+    const emailInstruction = groupInstruction ? `${testNote}\n\n${groupInstruction}` : testNote
+    if (email) sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: emailInstruction }).catch(() => {})
 
-    res.json({ ok: true, order_number: orderNumber, code: activationCode, voucher_code: activationCode, product_name: productName })
+    res.json({ ok: true, order_number: orderNumber, code: activationCode, voucher_code: activationCode, product_name: productName, instruction: groupInstruction })
   } catch (e) {
     console.error('[test-purchase]', e)
     res.status(500).json({ error: e.message })
