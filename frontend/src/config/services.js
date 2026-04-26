@@ -1,6 +1,9 @@
 const SI = 'https://cdn.jsdelivr.net/npm/simple-icons@latest/icons'
 const logo = slug => `${SI}/${slug}.svg`
 
+const II = 'https://api.iconify.design'
+const ilogo = (set, name) => `${II}/${set}/${name}.svg`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Цветовая палитра: тёмный игровой стиль.
 // Акценты — приглушённые, не кричащие. Красный только тёмный (бордо/вишня).
@@ -93,10 +96,12 @@ export const SERVICE_CONFIG = {
   },
   'DOOM The Dark Ages': {
     label: 'DOOM',
+    logo: ilogo('arcticons','doom'),
     accent: '#c03020',
     bg: 'linear-gradient(135deg, #180400 0%, #280800 100%)',
   },
   'Blood Strike': {
+    logo: ilogo('arcticons','project-bloodstrike'),
     accent: '#a02828',
     bg: 'linear-gradient(135deg, #140404 0%, #220808 100%)',
   },
@@ -105,6 +110,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #080e12 0%, #101820 100%)',
   },
   'Delta Force': {
+    logo: ilogo('arcticons','delta-force'),
     accent: '#6e8898',
     bg: 'linear-gradient(135deg, #080c10 0%, #101820 100%)',
   },
@@ -113,6 +119,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001424 0%, #001e34 100%)',
   },
   'Arena Breakout': {
+    logo: ilogo('arcticons','arena-breakout'),
     accent: '#d88000',
     bg: 'linear-gradient(135deg, #160a00 0%, #241400 100%)',
   },
@@ -127,6 +134,7 @@ export const SERVICE_CONFIG = {
   },
   'Honor of Kings': {
     label: 'Honor of Kings',
+    logo: ilogo('ri','honor-of-kings-fill'),
     accent: '#c89818',
     bg: 'linear-gradient(135deg, #100c00 0%, #1e1600 100%)',
   },
@@ -160,20 +168,24 @@ export const SERVICE_CONFIG = {
   },
   'MARVEL Mystic Mayhem': {
     label: 'Marvel Mystic Mayhem',
+    logo: ilogo('logos','marvel'),
     accent: '#a82030',
     bg: 'linear-gradient(135deg, #140006 0%, #22000c 100%)',
   },
   'Marvel Rivals': {
     label: 'Marvel Rivals',
+    logo: ilogo('logos','marvel'),
     accent: '#a82030',
     bg: 'linear-gradient(135deg, #140006 0%, #22000c 100%)',
   },
   'Super SUS': {
+    logo: ilogo('arcticons','super-sus'),
     accent: '#7838a8',
     bg: 'linear-gradient(135deg, #0c0018 0%, #1a0030 100%)',
   },
   'Top Eleven Be Football Manager': {
     label: 'Top Eleven',
+    logo: ilogo('arcticons','top-eleven'),
     accent: '#309848',
     bg: 'linear-gradient(135deg, #040e08 0%, #081a0e 100%)',
   },
@@ -191,10 +203,12 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #08001e 0%, #100030 100%)',
   },
   'Wuthering Waves': {
+    logo: ilogo('arcticons','wuthering-waves'),
     accent: '#38b8c8',
     bg: 'linear-gradient(135deg, #001418 0%, #002028 100%)',
   },
   'AFK Journey': {
+    logo: ilogo('arcticons','afk-arena'),
     accent: '#6840d8',
     bg: 'linear-gradient(135deg, #08001c 0%, #120030 100%)',
   },
@@ -240,6 +254,7 @@ export const SERVICE_CONFIG = {
   },
   'Goddess of Victory Nikke': {
     label: 'NIKKE',
+    logo: ilogo('arcticons','nikke'),
     accent: '#b848d8',
     bg: 'linear-gradient(135deg, #10001c 0%, #1e0030 100%)',
   },
@@ -249,6 +264,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001420 0%, #002030 100%)',
   },
   'Farlight 84': {
+    logo: ilogo('arcticons','farlight-84'),
     accent: '#00c8d8',
     bg: 'linear-gradient(135deg, #001418 0%, #002028 100%)',
   },
@@ -270,6 +286,7 @@ export const SERVICE_CONFIG = {
   },
   'LEGO Star Wars': {
     label: 'LEGO Star Wars',
+    logo: ilogo('mdi','lego'),
     accent: '#c8a800',
     bg: 'linear-gradient(135deg, #100e00 0%, #1e1800 100%)',
   },
@@ -277,6 +294,7 @@ export const SERVICE_CONFIG = {
   // ── Survival и ужасы ─────────────────────────────────────────────────────
 
   'Free Fire': {
+    logo: ilogo('arcticons','free-fire'),
     accent: '#c86000',
     bg: 'linear-gradient(135deg, #140800 0%, #221000 100%)',
   },
@@ -295,6 +313,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #080c10 0%, #10181e 100%)',
   },
   'Stumble Guys': {
+    logo: ilogo('arcticons','stumble-guys'),
     accent: '#e07820',
     bg: 'linear-gradient(135deg, #160800 0%, #241200 100%)',
   },
@@ -364,16 +383,19 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #060e06 0%, #0c1a0a 100%)',
   },
   'Metro Exodus': {
+    logo: ilogo('arcticons','metro'),
     accent: '#907868',
     bg: 'linear-gradient(135deg, #100c08 0%, #1e1610 100%)',
   },
   'Metro Redux': {
     label: 'Metro Redux',
+    logo: ilogo('arcticons','metro'),
     accent: '#887060',
     bg: 'linear-gradient(135deg, #100c08 0%, #1e1610 100%)',
   },
   'Metro 2033': {
     label: 'Metro 2033',
+    logo: ilogo('arcticons','metro'),
     accent: '#887060',
     bg: 'linear-gradient(135deg, #100c08 0%, #1e1610 100%)',
   },
@@ -523,10 +545,12 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001428 0%, #002040 100%)',
   },
   'KREA.AI': {
+    logo: ilogo('arcticons','kreate'),
     accent: '#8858d8',
     bg: 'linear-gradient(135deg, #080018 0%, #10002c 100%)',
   },
   'GAMMA.APP': {
+    logo: ilogo('arcticons','gamma'),
     accent: '#9858d8',
     bg: 'linear-gradient(135deg, #080018 0%, #10002c 100%)',
   },
@@ -563,6 +587,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #180c06 0%, #281810 100%)',
   },
   'Midjourney': {
+    logo: ilogo('logos','midjourney'),
     accent: '#9898b8',
     bg: 'linear-gradient(135deg, #080810 0%, #10101e 100%)',
   },
