@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { getToken, saveToken, clearToken, adminApi } from './adminApi'
 import { API_BASE } from '../config.js'
 import ProductsPage from './pages/ProductsPage'
@@ -10,13 +11,16 @@ import CategoriesPage from './pages/CategoriesPage'
 import './admin.css'
 
 const NAV = [
-  { key: 'products',     label: '📦 Товары' },
-  { key: 'categories',   label: '🗂 Категории' },
-  { key: 'markup',       label: '💰 Наценка' },
-  { key: 'wildberries',  label: '🛍 Wildberries' },
-  { key: 'logs',         label: '📋 Журнал' },
-  { key: 'tokens',       label: '🔑 Токены' },
+  { key: 'products',    label: 'Товары',      icon: '📦' },
+  { key: 'categories',  label: 'Категории',   icon: '🗂' },
+  { key: 'markup',      label: 'Наценка',     icon: '💰' },
+  { key: 'wildberries', label: 'Wildberries', icon: '🛍' },
+  { key: 'logs',        label: 'Журнал',      icon: '📋' },
+  { key: 'tokens',      label: 'Токены',      icon: '🔑' },
 ]
+
+const SIDEBAR_W = 220
+const SIDEBAR_COLLAPSED_W = 56
 
 function LoginScreen({ onLogin }) {
   const [token, setToken] = useState('')
@@ -26,7 +30,6 @@ function LoginScreen({ onLogin }) {
     e.preventDefault()
     setError('')
     saveToken(token)
-    // Verify token by calling a protected endpoint
     try {
       const res = await fetch(API_BASE + '/api/admin/settings', {
         headers: { Authorization: `Bearer ${token}` },
@@ -44,7 +47,12 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div className="a-login">
-      <div className="a-login-card">
+      <motion.div
+        className="a-login-card"
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', damping: 24, stiffness: 280 }}
+      >
         <div className="a-brand">
           COIN<span>2</span>GAME
           <span className="a-brand-label"> Admin</span>
@@ -64,7 +72,7 @@ function LoginScreen({ onLogin }) {
           {error && <p className="a-error">{error}</p>}
           <button type="submit" className="a-btn a-btn--primary a-btn--full">Войти</button>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -94,7 +102,6 @@ function FpBalance() {
   }, [refresh])
 
   const fmt = (v) => Number(v).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
   const entries = data
     ? Object.entries(BALANCE_KEYS).map(([k, label]) => [label, data[k]]).filter(([, v]) => v != null)
     : []
@@ -119,16 +126,11 @@ function FpBalance() {
           {updatedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
         </span>
       )}
-      <button
-        onClick={refresh}
-        disabled={loading}
-        title="Обновить баланс"
-        style={{
-          background: 'none', border: 'none', cursor: loading ? 'default' : 'pointer',
-          color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px',
-          opacity: loading ? 0.4 : 1, transition: 'opacity 0.15s',
-        }}
-      >↻</button>
+      <button onClick={refresh} disabled={loading} title="Обновить баланс" style={{
+        background: 'none', border: 'none', cursor: loading ? 'default' : 'pointer',
+        color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px',
+        opacity: loading ? 0.4 : 1, transition: 'opacity 0.15s',
+      }}>↻</button>
     </div>
   )
 }
@@ -166,8 +168,7 @@ function GGBalance() {
       }
       <button onClick={refresh} disabled={loading} style={{
         background: 'none', border: 'none', cursor: loading ? 'default' : 'pointer',
-        color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px',
-        opacity: loading ? 0.4 : 1,
+        color: '#92a2d4', fontSize: '0.85rem', padding: '0 2px', opacity: loading ? 0.4 : 1,
       }}>↻</button>
     </div>
   )
@@ -176,35 +177,138 @@ function GGBalance() {
 export default function AdminApp() {
   const [authed, setAuthed] = useState(!!getToken())
   const [page, setPage] = useState('products')
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('admin_sidebar_collapsed') === '1' } catch { return false }
+  })
+
+  function toggleSidebar() {
+    setCollapsed(v => {
+      const next = !v
+      try { localStorage.setItem('admin_sidebar_collapsed', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
 
   if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />
 
   return (
     <div className="a-shell">
-      <aside className="a-sidebar">
-        <div className="a-brand">
-          COIN<span>2</span>GAME
-          <span className="a-brand-label"> Admin</span>
+      <motion.aside
+        className="a-sidebar"
+        animate={{ width: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        style={{ overflow: 'hidden' }}
+      >
+        {/* Brand */}
+        <div className="a-brand" style={{ padding: collapsed ? '0 0 20px' : '0 8px 24px', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+          <AnimatePresence mode="wait">
+            {collapsed ? (
+              <motion.span
+                key="short"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: 0 }}
+              >
+                C<span style={{ color: '#865fff' }}>2</span>
+              </motion.span>
+            ) : (
+              <motion.span
+                key="full"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                COIN<span>2</span>GAME
+                <span className="a-brand-label"> Admin</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
+
+        {/* Navigation */}
         <nav className="a-nav">
           {NAV.map(n => (
-            <button
+            <motion.button
               key={n.key}
               className={`a-nav-item${page === n.key ? ' active' : ''}`}
               onClick={() => setPage(n.key)}
+              title={collapsed ? n.label : undefined}
+              whileHover={{ x: collapsed ? 0 : 3 }}
+              whileTap={{ scale: 0.96 }}
+              style={{
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                padding: collapsed ? '10px 0' : '10px 12px',
+              }}
             >
-              {n.label}
-            </button>
+              <span style={{ fontSize: collapsed ? '1.1rem' : '1rem', flexShrink: 0 }}>{n.icon}</span>
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.18 }}
+                    style={{ overflow: 'hidden', whiteSpace: 'nowrap', marginLeft: 10 }}
+                  >
+                    {n.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
           ))}
         </nav>
-        <button
-          className="a-nav-item a-nav-item--logout"
-          style={{ marginTop: 'auto' }}
-          onClick={() => { clearToken(); setAuthed(false) }}
-        >
-          Выйти
-        </button>
-      </aside>
+
+        {/* Bottom: logout + toggle */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <motion.button
+            className="a-nav-item a-nav-item--logout"
+            onClick={() => { clearToken(); setAuthed(false) }}
+            title={collapsed ? 'Выйти' : undefined}
+            whileTap={{ scale: 0.96 }}
+            style={{
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              padding: collapsed ? '10px 0' : '10px 12px',
+            }}
+          >
+            <span style={{ fontSize: collapsed ? '1.1rem' : '1rem', flexShrink: 0 }}>🚪</span>
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.18 }}
+                  style={{ overflow: 'hidden', whiteSpace: 'nowrap', marginLeft: 10 }}
+                >
+                  Выйти
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+
+          {/* Collapse toggle */}
+          <motion.button
+            onClick={toggleSidebar}
+            title={collapsed ? 'Развернуть панель' : 'Свернуть панель'}
+            whileHover={{ background: 'rgba(255,255,255,0.06)' }}
+            whileTap={{ scale: 0.94 }}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-end',
+              padding: '8px 10px', borderRadius: 10, border: 'none',
+              background: 'transparent', cursor: 'pointer',
+              color: 'rgba(146,162,212,0.4)', fontSize: '0.8rem',
+            }}
+          >
+            <motion.span
+              animate={{ rotate: collapsed ? 0 : 180 }}
+              transition={{ duration: 0.3 }}
+              style={{ display: 'inline-block' }}
+            >
+              ›
+            </motion.span>
+          </motion.button>
+        </div>
+      </motion.aside>
 
       <div className="a-main-wrap">
         <header className="a-topbar">
@@ -212,12 +316,23 @@ export default function AdminApp() {
           <GGBalance />
         </header>
         <main className="a-main">
-          {page === 'products'    && <ProductsPage />}
-          {page === 'categories'  && <CategoriesPage />}
-          {page === 'markup'      && <MarkupPage />}
-          {page === 'wildberries' && <WildberriesPage />}
-          {page === 'logs'        && <LogsPage />}
-          {page === 'tokens'      && <TokensPage />}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={page}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              style={{ height: '100%' }}
+            >
+              {page === 'products'    && <ProductsPage />}
+              {page === 'categories'  && <CategoriesPage />}
+              {page === 'markup'      && <MarkupPage />}
+              {page === 'wildberries' && <WildberriesPage />}
+              {page === 'logs'        && <LogsPage />}
+              {page === 'tokens'      && <TokensPage />}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
