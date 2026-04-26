@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react'
 import { adminApi } from '../adminApi'
 
-function DescriptionModal({ group, initial, onSave, onClose }) {
+// Generic modal for description or instructions
+function TextModal({ group, fieldLabel, initial, onSave, onClose, loadDraft }) {
   const [text, setText] = useState(initial || '')
   const [saving, setSaving] = useState(false)
   const [loadingDraft, setLoadingDraft] = useState(false)
   const [draftLoaded, setDraftLoaded] = useState(false)
 
   useEffect(() => {
-    if (initial) return // уже есть сохранённое — не перебиваем
+    if (initial || !loadDraft) return
     setLoadingDraft(true)
-    adminApi.getGroupDescription(group).then(({ description }) => {
-      if (description) {
-        setText(description)
-        setDraftLoaded(true)
-      }
+    loadDraft(group).then(value => {
+      if (value) { setText(value); setDraftLoaded(true) }
       setLoadingDraft(false)
     }).catch(() => setLoadingDraft(false))
-  }, [group, initial])
+  }, [group, initial, loadDraft])
 
   async function handleSave() {
     setSaving(true)
@@ -30,7 +28,7 @@ function DescriptionModal({ group, initial, onSave, onClose }) {
     <div className="a-backdrop" onClick={onClose}>
       <div className="a-modal" style={{ width: 'min(100%, 560px)' }} onClick={e => e.stopPropagation()}>
         <div className="a-modal-header">
-          <h3>Описание категории: {group}</h3>
+          <h3>{fieldLabel}: {group}</h3>
           <button className="a-close" onClick={onClose}>×</button>
         </div>
         <div className="a-modal-body">
@@ -40,15 +38,17 @@ function DescriptionModal({ group, initial, onSave, onClose }) {
             </div>
           )}
           <p className="a-muted" style={{ fontSize: '0.82rem', marginBottom: 8 }}>
-            Это описание будет применено ко всем товарам группы без собственного описания при следующей синхронизации.
+            {fieldLabel === 'Описание'
+              ? 'Будет применено ко всем товарам группы без собственного описания при следующей синхронизации.'
+              : 'Инструкция «Как получить товар» — показывается покупателям после оплаты и отправляется в email.'}
           </p>
           <label className="a-field">
-            <span>Описание</span>
+            <span>{fieldLabel}</span>
             <textarea
               rows={8}
               value={loadingDraft ? 'Загрузка...' : text}
               onChange={e => setText(e.target.value)}
-              placeholder="Введите описание категории..."
+              placeholder={`Введите ${fieldLabel.toLowerCase()}...`}
               disabled={loadingDraft}
               autoFocus={!loadingDraft}
             />
@@ -81,16 +81,19 @@ const TABS = [
 ]
 
 export default function CategoriesPage() {
-  const [groups, setGroups] = useState([])
-  const [featured, setFeatured] = useState(new Set())
-  const [descriptions, setDescriptions] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [editGroup, setEditGroup] = useState(null)
-  const [tab, setTab] = useState('all')
-  const [search, setSearch] = useState('')
-  const [descFilter, setDescFilter] = useState('')   // '' | 'with' | 'without'
+  const [groups, setGroups]           = useState([])
+  const [featured, setFeatured]       = useState(new Set())
+  const [descriptions, setDescriptions]   = useState({})
+  const [instructions, setInstructions]   = useState({})
+  const [loading, setLoading]         = useState(true)
+  const [saving, setSaving]           = useState(false)
+  const [saved, setSaved]             = useState(false)
+  // modal: { group, field: 'desc'|'instr' }
+  const [editModal, setEditModal]     = useState(null)
+  const [tab, setTab]                 = useState('all')
+  const [search, setSearch]           = useState('')
+  const [descFilter, setDescFilter]   = useState('')
+  const [instrFilter, setInstrFilter] = useState('')
 
   useEffect(() => {
     Promise.all([adminApi.getGroups(), adminApi.getSettings()]).then(([rows, s]) => {
@@ -104,6 +107,11 @@ export default function CategoriesPage() {
         const raw = s.group_descriptions
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
         if (parsed && typeof parsed === 'object') setDescriptions(parsed)
+      } catch {}
+      try {
+        const raw = s.group_instructions
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        if (parsed && typeof parsed === 'object') setInstructions(parsed)
       } catch {}
       setLoading(false)
     })
@@ -124,6 +132,13 @@ export default function CategoriesPage() {
     await adminApi.updateSettings({ group_descriptions: JSON.stringify(next) })
   }
 
+  async function handleSaveInstruction(group, text) {
+    const next = { ...instructions, [group]: text }
+    if (!text) delete next[group]
+    setInstructions(next)
+    await adminApi.updateSettings({ group_instructions: JSON.stringify(next) })
+  }
+
   async function handleSave() {
     setSaving(true)
     await adminApi.updateSettings({ featured_groups: JSON.stringify([...featured]) })
@@ -140,6 +155,8 @@ export default function CategoriesPage() {
     if (search && !g.toLowerCase().includes(search.toLowerCase())) return false
     if (descFilter === 'with'    && !descriptions[g]) return false
     if (descFilter === 'without' &&  descriptions[g]) return false
+    if (instrFilter === 'with'    && !instructions[g]) return false
+    if (instrFilter === 'without' &&  instructions[g]) return false
     return true
   })
 
@@ -155,7 +172,6 @@ export default function CategoriesPage() {
       {/* ── Фильтры ── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
 
-        {/* Табы */}
         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 3, gap: 2 }}>
           {TABS.map(t => (
             <button
@@ -176,25 +192,24 @@ export default function CategoriesPage() {
           ))}
         </div>
 
-        {/* Поиск */}
         <input
           className="a-col-filter"
-          style={{ flex: '1 1 180px', minWidth: 140, maxWidth: 280 }}
+          style={{ flex: '1 1 160px', minWidth: 120, maxWidth: 260 }}
           placeholder="Поиск категории..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
 
-        {/* Дропдаун по описанию */}
-        <select
-          className="a-col-filter"
-          style={{ minWidth: 160 }}
-          value={descFilter}
-          onChange={e => setDescFilter(e.target.value)}
-        >
+        <select className="a-col-filter" style={{ minWidth: 150 }} value={descFilter} onChange={e => setDescFilter(e.target.value)}>
           <option value="">Все описания</option>
           <option value="with">С описанием</option>
           <option value="without">Без описания</option>
+        </select>
+
+        <select className="a-col-filter" style={{ minWidth: 160 }} value={instrFilter} onChange={e => setInstrFilter(e.target.value)}>
+          <option value="">Все инструкции</option>
+          <option value="with">С инструкцией</option>
+          <option value="without">Без инструкции</option>
         </select>
       </div>
 
@@ -205,7 +220,8 @@ export default function CategoriesPage() {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {visible.map(g => {
-            const hasDesc = !!descriptions[g]
+            const hasDesc  = !!descriptions[g]
+            const hasInstr = !!instructions[g]
             const isFeatured = featured.has(g)
             return (
               <div
@@ -235,9 +251,10 @@ export default function CategoriesPage() {
                   : <span className="a-badge" style={{ flexShrink: 0, background: 'rgba(255,255,255,0.05)', color: 'rgba(232,236,255,0.3)' }}>Прочие</span>
                 }
 
+                {/* Кнопка Описание */}
                 <button
                   title={hasDesc ? 'Редактировать описание' : 'Добавить описание'}
-                  onClick={() => setEditGroup(g)}
+                  onClick={() => setEditModal({ group: g, field: 'desc' })}
                   style={{
                     background: hasDesc ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)',
                     border: hasDesc ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(255,255,255,0.08)',
@@ -249,18 +266,47 @@ export default function CategoriesPage() {
                 >
                   {hasDesc ? '✓ Описание' : '+ Описание'}
                 </button>
+
+                {/* Кнопка Инструкция */}
+                <button
+                  title={hasInstr ? 'Редактировать инструкцию' : 'Добавить инструкцию'}
+                  onClick={() => setEditModal({ group: g, field: 'instr' })}
+                  style={{
+                    background: hasInstr ? 'rgba(96,165,250,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: hasInstr ? '1px solid rgba(96,165,250,0.35)' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
+                    color: hasInstr ? '#60a5fa' : '#92a2d4',
+                    fontSize: '0.75rem', whiteSpace: 'nowrap', flexShrink: 0,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {hasInstr ? '✓ Инструкция' : '+ Инструкция'}
+                </button>
               </div>
             )
           })}
         </div>
       </div>
 
-      {editGroup && (
-        <DescriptionModal
-          group={editGroup}
-          initial={descriptions[editGroup]}
+      {editModal?.field === 'desc' && (
+        <TextModal
+          group={editModal.group}
+          fieldLabel="Описание"
+          initial={descriptions[editModal.group]}
           onSave={handleSaveDescription}
-          onClose={() => setEditGroup(null)}
+          onClose={() => setEditModal(null)}
+          loadDraft={g => adminApi.getGroupDescription(g).then(r => r.description)}
+        />
+      )}
+
+      {editModal?.field === 'instr' && (
+        <TextModal
+          group={editModal.group}
+          fieldLabel="Инструкция"
+          initial={instructions[editModal.group]}
+          onSave={handleSaveInstruction}
+          onClose={() => setEditModal(null)}
+          loadDraft={null}
         />
       )}
     </div>
