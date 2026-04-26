@@ -514,54 +514,86 @@ app.get('/api/config', async (req, res) => {
 function orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }) {
   return `<!DOCTYPE html>
 <html lang="ru">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:40px 16px">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ваш заказ COIN2GAME</title>
+</head>
+<body style="margin:0;padding:0;background:#07091d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#07091d;padding:40px 16px">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
+      <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%">
 
-        <!-- Header -->
-        <tr><td style="background:linear-gradient(135deg,#1a0a2e,#16213e);border-radius:20px 20px 0 0;padding:32px 40px;text-align:center">
-          <div style="font-size:22px;font-weight:800;letter-spacing:0.06em;color:#fff">
-            <span style="color:#f48f1b">COIN</span><span style="color:#865fff">2</span>GAME
+        <!-- Logo -->
+        <tr><td style="padding:0 0 28px;text-align:center">
+          <div style="font-size:26px;font-weight:900;letter-spacing:0.04em">
+            <span style="color:#f58f1b">COIN</span><span style="color:#865fff">2</span><span style="color:#e8ecff">GAME</span>
           </div>
-          <div style="margin-top:8px;font-size:13px;color:rgba(255,255,255,0.5);letter-spacing:0.08em;text-transform:uppercase">Цифровые товары</div>
+          <div style="margin-top:6px;font-size:11px;color:rgba(232,236,255,0.35);letter-spacing:0.14em;text-transform:uppercase">Цифровые коды · Мгновенная доставка</div>
         </td></tr>
 
-        <!-- Body -->
-        <tr><td style="background:#fff;padding:40px 40px 32px">
+        <!-- Card -->
+        <tr><td style="background:#0d1424;border-radius:24px;border:1px solid rgba(255,255,255,0.07);overflow:hidden">
 
-          <div style="font-size:20px;font-weight:700;color:#111;margin-bottom:6px">Ваш заказ готов 🎮</div>
-          <div style="font-size:14px;color:#888;margin-bottom:32px">Заказ №<strong style="color:#444">${orderNumber}</strong></div>
+          <!-- Gradient top bar -->
+          <tr><td style="background:linear-gradient(90deg,#865fff,#f58f1b);height:3px;line-height:3px;font-size:0">&nbsp;</td></tr>
+
+          <!-- Header -->
+          <tr><td style="padding:32px 40px 24px">
+            <div style="font-size:22px;font-weight:700;color:#e8ecff;margin-bottom:8px">Ваш заказ готов</div>
+            <div style="font-size:13px;color:rgba(232,236,255,0.4)">
+              Заказ&nbsp;<span style="color:#c4b9ff;font-weight:600">#${orderNumber}</span>
+              &nbsp;·&nbsp;Код отправлен на&nbsp;<span style="color:rgba(232,236,255,0.6)">${email}</span>
+            </div>
+          </td></tr>
+
+          <!-- Divider -->
+          <tr><td style="padding:0 40px"><div style="height:1px;background:rgba(255,255,255,0.06)"></div></td></tr>
 
           <!-- Product -->
-          <div style="background:#f8f9ff;border-radius:14px;padding:20px 24px;margin-bottom:24px">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#999;margin-bottom:6px">Товар</div>
-            <div style="font-size:16px;font-weight:600;color:#222">${productName}</div>
-          </div>
+          <tr><td style="padding:24px 40px">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(232,236,255,0.35);margin-bottom:8px">Товар</div>
+            <div style="font-size:17px;font-weight:600;color:#e8ecff">${productName}</div>
+          </td></tr>
 
-          <!-- Code -->
-          <div style="background:linear-gradient(135deg,#1a0a2e,#16213e);border-radius:14px;padding:24px;margin-bottom:24px;text-align:center">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.5);margin-bottom:12px">Код активации</div>
-            <div style="font-size:28px;font-weight:800;letter-spacing:0.15em;color:#f4c06a;font-family:monospace;word-break:break-all">${activationCode}</div>
-            <div style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4)">Скопируйте код и используйте при активации</div>
-          </div>
+          <!-- Code block -->
+          <tr><td style="padding:0 40px 28px">
+            <div style="background:#111827;border-radius:16px;border:1px solid rgba(134,95,255,0.25);padding:28px 24px;text-align:center">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:rgba(134,95,255,0.7);margin-bottom:16px;font-weight:600">Код активации</div>
+              <div style="font-size:30px;font-weight:800;letter-spacing:0.18em;color:#f4c06a;font-family:'Courier New',Courier,monospace;word-break:break-all;line-height:1.3">${activationCode}</div>
+              <div style="margin-top:16px;font-size:12px;color:rgba(232,236,255,0.3)">Скопируйте код — он одноразовый и действует бессрочно</div>
+            </div>
+          </td></tr>
 
           ${instructions ? `
           <!-- Instructions -->
-          <div style="border-left:3px solid #865fff;padding:16px 20px;background:#faf9ff;border-radius:0 12px 12px 0;margin-bottom:24px">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#865fff;margin-bottom:8px;font-weight:600">Инструкция по активации</div>
-            <div style="font-size:14px;color:#444;line-height:1.7;white-space:pre-line">${instructions}</div>
-          </div>` : ''}
+          <tr><td style="padding:0 40px 28px">
+            <div style="border-left:3px solid #865fff;padding:16px 20px;background:rgba(134,95,255,0.06);border-radius:0 12px 12px 0">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#a78bff;margin-bottom:10px;font-weight:600">Инструкция по активации</div>
+              <div style="font-size:13px;color:rgba(232,236,255,0.65);line-height:1.75;white-space:pre-line">${instructions}</div>
+            </div>
+          </td></tr>` : ''}
 
-          <div style="font-size:13px;color:#aaa;line-height:1.6">
-            Если возникли вопросы — напишите нам на <a href="mailto:info@coin2game.space" style="color:#865fff">info@coin2game.space</a>
-          </div>
+          <!-- Support -->
+          <tr><td style="padding:0 40px 32px">
+            <div style="background:rgba(255,255,255,0.03);border-radius:12px;padding:16px 20px">
+              <div style="font-size:13px;color:rgba(232,236,255,0.45);line-height:1.6">
+                Возникли вопросы? Пишите на
+                <a href="mailto:info@coin2game.space" style="color:#865fff;text-decoration:none">info@coin2game.space</a>
+                — ответим в течение 24 часов.
+              </div>
+            </div>
+          </td></tr>
+
         </td></tr>
+        <!-- end card -->
 
         <!-- Footer -->
-        <tr><td style="background:#f4f6fb;border-radius:0 0 20px 20px;padding:20px 40px;text-align:center">
-          <div style="font-size:12px;color:#bbb">© 2025 COIN2GAME · Письмо отправлено на ${email}</div>
+        <tr><td style="padding:24px 0;text-align:center">
+          <div style="font-size:12px;color:rgba(232,236,255,0.2);line-height:1.8">
+            © 2026 COIN2GAME &nbsp;·&nbsp;
+            <a href="https://coin2game.space" style="color:rgba(134,95,255,0.5);text-decoration:none">coin2game.space</a>
+          </div>
         </td></tr>
 
       </table>
