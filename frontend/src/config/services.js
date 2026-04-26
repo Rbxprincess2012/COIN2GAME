@@ -132,16 +132,19 @@ export const SERVICE_CONFIG = {
   },
   'Mobile Legends': {
     label: 'Mobile Legends',
+    logo: logo('bytedance'),
     accent: '#a82828',
     bg: 'linear-gradient(135deg, #160404 0%, #240808 100%)',
   },
   'Mobile Legends GLOBAL': {
     label: 'ML: Bang Bang',
+    logo: logo('bytedance'),
     accent: '#a82828',
     bg: 'linear-gradient(135deg, #160404 0%, #240808 100%)',
   },
   'Magic Chess Go Go': {
     label: 'Magic Chess',
+    logo: logo('bytedance'),
     accent: '#8858b8',
     bg: 'linear-gradient(135deg, #0c0018 0%, #180028 100%)',
   },
@@ -178,10 +181,12 @@ export const SERVICE_CONFIG = {
   // ── RPG и приключения ────────────────────────────────────────────────────
 
   'Genshin Impact': {
+    logo: logo('mihoyo'),
     accent: '#4898c0',
     bg: 'linear-gradient(135deg, #001422 0%, #002034 100%)',
   },
   'Honkai Star Rail': {
+    logo: logo('mihoyo'),
     accent: '#8878d0',
     bg: 'linear-gradient(135deg, #08001e 0%, #100030 100%)',
   },
@@ -211,10 +216,12 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #0e0c04 0%, #1c1808 100%)',
   },
   'Destiny 2': {
+    logo: logo('bungie'),
     accent: '#9098a8',
     bg: 'linear-gradient(135deg, #080c14 0%, #101822 100%)',
   },
   'Destiny Rising': {
+    logo: logo('bungie'),
     accent: '#8898b0',
     bg: 'linear-gradient(135deg, #080c14 0%, #101822 100%)',
   },
@@ -246,11 +253,13 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001418 0%, #002028 100%)',
   },
   'New State Mobile': {
+    logo: logo('pubg'),
     accent: '#7888a0',
     bg: 'linear-gradient(135deg, #080c12 0%, #101820 100%)',
   },
   'Harry Potter Magic Awakened': {
     label: 'Harry Potter',
+    logo: logo('warnerbros'),
     accent: '#b09840',
     bg: 'linear-gradient(135deg, #0e0a00 0%, #1c1600 100%)',
   },
@@ -321,21 +330,25 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #100c04 0%, #1e1808 100%)',
   },
   'God of War': {
+    logo: logo('playstation'),
     accent: '#a02820',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'God of War Ragnarok': {
     label: 'God of War',
+    logo: logo('playstation'),
     accent: '#a02820',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'Mortal Kombat 11': {
     label: 'Mortal Kombat',
+    logo: logo('warnerbros'),
     accent: '#a82820',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'MORTAL KOMBAT XL': {
     label: 'MK XL',
+    logo: logo('warnerbros'),
     accent: '#a82820',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
@@ -346,6 +359,7 @@ export const SERVICE_CONFIG = {
   },
   'The Last of Us Part II': {
     label: 'The Last of Us',
+    logo: logo('playstation'),
     accent: '#689858',
     bg: 'linear-gradient(135deg, #060e06 0%, #0c1a0a 100%)',
   },
@@ -364,14 +378,17 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #100c08 0%, #1e1610 100%)',
   },
   'Mafia III': {
+    logo: logo('2k'),
     accent: '#c8a020',
     bg: 'linear-gradient(135deg, #100c00 0%, #1e1600 100%)',
   },
   'Just Cause 3': {
+    logo: logo('squareenix'),
     accent: '#489858',
     bg: 'linear-gradient(135deg, #040e08 0%, #081a0e 100%)',
   },
   'Arma 3': {
+    logo: logo('bohemiainteractive'),
     accent: '#607870',
     bg: 'linear-gradient(135deg, #080e0c 0%, #101a16 100%)',
   },
@@ -408,11 +425,6 @@ export const SERVICE_CONFIG = {
     accent: '#48a860',
     bg: 'linear-gradient(135deg, #041008 0%, #081e10 100%)',
   },
-  'Genshin Impact': {
-    accent: '#4898c0',
-    bg: 'linear-gradient(135deg, #001422 0%, #002034 100%)',
-  },
-
   // ── Стриминг и соцсети ───────────────────────────────────────────────────
 
   'Netflix': {
