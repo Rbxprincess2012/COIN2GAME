@@ -584,6 +584,72 @@ router.post('/wb/sync-articles', async (req, res) => {
   }
 })
 
+// Sync barcodes from WB Content API (/content/v2/get/cards/list)
+// Rate limit: 10 req/min — paginate with 100 per page, 6s between pages
+router.post('/wb/sync-barcodes', async (req, res) => {
+  try {
+    const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('wb_marina_token','wb_tatyana_token')`)
+    const s = {}
+    for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
+    const token = s['wb_marina_token'] || s['wb_tatyana_token']
+    if (!token) return res.status(400).json({ error: 'Нет токена WB' })
+
+    const WB_CONTENT = 'https://content-api.wildberries.ru'
+    const delay = ms => new Promise(r => setTimeout(r, ms))
+
+    let allCards = []
+    let cursor = {}
+
+    // Paginate Content API — 10 req/min, so 6s between requests
+    while (true) {
+      const body = { settings: { cursor: { limit: 100, ...cursor }, filter: { withPhoto: -1 } } }
+      const r = await fetch(`${WB_CONTENT}/content/v2/get/cards/list`, {
+        method: 'POST',
+        headers: { Authorization: token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (r.status === 429) {
+        const wait = parseInt(r.headers.get('X-Ratelimit-Retry') || '60')
+        console.log(`[WB barcodes] 429 — waiting ${wait}s`)
+        await delay(wait * 1000)
+        continue
+      }
+      const data = await r.json()
+      const cards = data?.cards || []
+      allCards.push(...cards)
+
+      const next = data?.cursor
+      if (!next || cards.length < 100) break
+      cursor = { nmID: next.nmID, updatedAt: next.updatedAt }
+      await delay(6100) // 6.1s → safely within 10 req/min
+    }
+
+    // Match cards to DB products by vendorCode (wb_article) and save barcode
+    let updated = 0, skipped = 0
+    for (const card of allCards) {
+      const vendorCode = card.vendorCode
+      if (!vendorCode) { skipped++; continue }
+
+      // barcode is in sizes[].skus[] — take the first one
+      const barcode = card.sizes?.[0]?.skus?.[0] || null
+      if (!barcode) { skipped++; continue }
+
+      const r = await pool.query(
+        `UPDATE products SET wb_barcode=$1, updated_at=NOW()
+         WHERE wb_article=$2 RETURNING product_id`,
+        [barcode, vendorCode]
+      )
+      if (r.rows.length > 0) updated++
+      else skipped++
+    }
+
+    await log('WB_BARCODES_SYNC', null, null, { total: allCards.length, updated, skipped })
+    res.json({ ok: true, total: allCards.length, updated, skipped })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── WB: push prices via API ───────────────────────────────────────────────────
 
 const ENTREPRENEUR_TAX_WB = { marina: 8, tatyana: 6 }

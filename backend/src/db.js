@@ -72,6 +72,11 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_article TEXT;
   `)
 
+  // Migration: add wb_barcode for printing labels
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS wb_barcode TEXT;
+  `)
+
   // Migration: add sales_count for popularity sorting
   await pool.query(`
     ALTER TABLE products ADD COLUMN IF NOT EXISTS sales_count INTEGER DEFAULT 0;
