@@ -106,6 +106,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #140404 0%, #220808 100%)',
   },
   'Point Blank': {
+    logo: ilogo('game-icons','crossed-swords'),
     accent: '#607888',
     bg: 'linear-gradient(135deg, #080e12 0%, #101820 100%)',
   },
@@ -115,6 +116,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #080c10 0%, #101820 100%)',
   },
   'ARC Raiders': {
+    logo: ilogo('mdi','sword'),
     accent: '#4898c8',
     bg: 'linear-gradient(135deg, #001424 0%, #001e34 100%)',
   },
@@ -163,6 +165,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #0a0810 0%, #14101e 100%)',
   },
   'Watcher Of Realms': {
+    logo: ilogo('game-icons','crystal-eye'),
     accent: '#6870b0',
     bg: 'linear-gradient(135deg, #080c18 0%, #10142a 100%)',
   },
@@ -213,19 +216,23 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #08001c 0%, #120030 100%)',
   },
   'Once Human': {
+    logo: ilogo('ph','virus'),
     accent: '#68a898',
     bg: 'linear-gradient(135deg, #04100e 0%, #081e1a 100%)',
   },
   'Dragonheir Silent Gods': {
     label: 'Dragonheir',
+    logo: ilogo('game-icons','dragon-head'),
     accent: '#c87020',
     bg: 'linear-gradient(135deg, #160800 0%, #240e00 100%)',
   },
   'Love and Deepspace': {
+    logo: ilogo('mdi','heart'),
     accent: '#d07898',
     bg: 'linear-gradient(135deg, #160010 0%, #240020 100%)',
   },
   'Identity V': {
+    logo: ilogo('mdi','ghost'),
     accent: '#a09060',
     bg: 'linear-gradient(135deg, #0e0c04 0%, #1c1808 100%)',
   },
@@ -240,15 +247,18 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #080c14 0%, #101822 100%)',
   },
   'Black Desert': {
+    logo: ilogo('game-icons','crossed-swords'),
     accent: '#a05030',
     bg: 'linear-gradient(135deg, #120600 0%, #200c00 100%)',
   },
   'EVE Echoes': {
+    logo: ilogo('mdi','planet'),
     accent: '#2898d8',
     bg: 'linear-gradient(135deg, #001424 0%, #002038 100%)',
   },
   'Onmyoji Arena': {
     label: 'Onmyoji Arena',
+    logo: ilogo('game-icons','crystal-eye'),
     accent: '#c09070',
     bg: 'linear-gradient(135deg, #100a04 0%, #1e1208 100%)',
   },
@@ -260,7 +270,7 @@ export const SERVICE_CONFIG = {
   },
   'Snowbreak Containment Zone': {
     label: 'Snowbreak',
-    accent: '#38a8d8',
+    logo: ilogo('tabler','virus'),
     bg: 'linear-gradient(135deg, #001420 0%, #002030 100%)',
   },
   'Farlight 84': {
@@ -281,6 +291,7 @@ export const SERVICE_CONFIG = {
   },
   'Clair Obscur Expedition 33': {
     label: 'Clair Obscur',
+    logo: ilogo('game-icons','crossed-swords'),
     accent: '#a878c8',
     bg: 'linear-gradient(135deg, #0e0018 0%, #1c0028 100%)',
   },
@@ -300,15 +311,18 @@ export const SERVICE_CONFIG = {
   },
   'State of Survival Zombie War': {
     label: 'State of Survival',
+    logo: ilogo('game-icons','biohazard'),
     accent: '#a83820',
     bg: 'linear-gradient(135deg, #140600 0%, #220a00 100%)',
   },
   'LifeAfter': {
+    logo: ilogo('ph','virus'),
     accent: '#50a060',
     bg: 'linear-gradient(135deg, #04100a 0%, #081c10 100%)',
   },
   'Doomsday Last Survivors': {
     label: 'Doomsday',
+    logo: ilogo('mdi','skull'),
     accent: '#688090',
     bg: 'linear-gradient(135deg, #080c10 0%, #10181e 100%)',
   },
@@ -318,10 +332,12 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #160800 0%, #241200 100%)',
   },
   'Zepeto': {
+    logo: ilogo('mdi','ghost'),
     accent: '#d05888',
     bg: 'linear-gradient(135deg, #160010 0%, #24001e 100%)',
   },
   'Likee': {
+    logo: ilogo('arcticons','likee'),
     accent: '#e05050',
     bg: 'linear-gradient(135deg, #160404 0%, #240808 100%)',
   },
@@ -330,21 +346,25 @@ export const SERVICE_CONFIG = {
 
   'Resident Evil Requiem': {
     label: 'Resident Evil',
+    logo: ilogo('mdi','biohazard'),
     accent: '#a03020',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'Resident Evil 4': {
     label: 'Resident Evil 4',
+    logo: ilogo('mdi','biohazard'),
     accent: '#a03020',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'Resident Evil Village': {
     label: 'RE: Village',
+    logo: ilogo('mdi','biohazard'),
     accent: '#a03020',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'DARK SOULS REMASTERED': {
     label: 'Dark Souls',
+    logo: ilogo('mdi','skull-crossbones-outline'),
     accent: '#c0a858',
     bg: 'linear-gradient(135deg, #100c04 0%, #1e1808 100%)',
   },
@@ -373,6 +393,7 @@ export const SERVICE_CONFIG = {
   },
   'Street Fighter 6': {
     label: 'Street Fighter',
+    logo: ilogo('mdi','karate'),
     accent: '#c07020',
     bg: 'linear-gradient(135deg, #140a00 0%, #221400 100%)',
   },
@@ -416,15 +437,18 @@ export const SERVICE_CONFIG = {
   },
   'Devil May Cry HD': {
     label: 'Devil May Cry',
+    logo: ilogo('game-icons','katana'),
     accent: '#c02820',
     bg: 'linear-gradient(135deg, #140400 0%, #220800 100%)',
   },
   'Legacy of Kain Soul Reaver': {
     label: 'Legacy of Kain',
+    logo: ilogo('mdi','ghost'),
     accent: '#8058a8',
     bg: 'linear-gradient(135deg, #0c0018 0%, #180028 100%)',
   },
   'Mobile Royale': {
+    logo: ilogo('mdi','sword'),
     accent: '#8858a8',
     bg: 'linear-gradient(135deg, #0c0018 0%, #180028 100%)',
   },
@@ -482,6 +506,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001828 0%, #002440 100%)',
   },
   'Revid': {
+    logo: ilogo('mdi','video-box'),
     accent: '#d04858',
     bg: 'linear-gradient(135deg, #140008 0%, #220012 100%)',
   },
@@ -541,6 +566,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001828 0%, #003040 100%)',
   },
   'Sider': {
+    logo: ilogo('mdi','robot'),
     accent: '#4888d8',
     bg: 'linear-gradient(135deg, #001428 0%, #002040 100%)',
   },
@@ -555,10 +581,12 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #080018 0%, #10002c 100%)',
   },
   'Fal.AI': {
+    logo: ilogo('mdi','lightning-bolt'),
     accent: '#48a8c8',
     bg: 'linear-gradient(135deg, #001820 0%, #002c34 100%)',
   },
   'HIGGSFIELD AI': {
+    logo: ilogo('tabler','video'),
     accent: '#7878c8',
     bg: 'linear-gradient(135deg, #080814 0%, #101022 100%)',
   },
@@ -607,6 +635,7 @@ export const SERVICE_CONFIG = {
     bg: 'linear-gradient(135deg, #001828 0%, #003040 100%)',
   },
   'Ideogram': {
+    logo: ilogo('tabler','photo-ai'),
     accent: '#9898c8',
     bg: 'linear-gradient(135deg, #080810 0%, #101020 100%)',
   },
