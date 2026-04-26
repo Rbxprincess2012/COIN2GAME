@@ -204,6 +204,20 @@ app.get('/api/groups', async (req, res) => {
   }
 })
 
+// GET /api/instruction?group=X — публичная инструкция по активации для группы
+app.get('/api/instruction', async (req, res) => {
+  try {
+    const group = req.query.group
+    if (!group) return res.json({ instruction: null })
+    const row = await pool.query(`SELECT value FROM settings WHERE key='group_instructions'`)
+    const raw = row.rows[0]?.value
+    const map = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {}
+    res.json({ instruction: map[group] || null })
+  } catch (e) {
+    res.status(500).json({ instruction: null })
+  }
+})
+
 // In-memory code store: { email → { code, expires } }
 const codeSessions = new Map()
 

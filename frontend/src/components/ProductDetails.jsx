@@ -34,10 +34,23 @@ function DescriptionBlock({ text }) {
   )
 }
 
+import { useState, useEffect } from 'react'
+import { API_BASE } from '../config.js'
 import { SERVICE_CONFIG } from '../config/services.js'
 
 function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, isLoggedIn }) {
   if (!product) return null
+
+  const [instruction, setInstruction] = useState(null)
+
+  useEffect(() => {
+    const group = product.service || product.platform
+    if (!group) return
+    fetch(`${API_BASE}/api/instruction?group=${encodeURIComponent(group)}`)
+      .then(r => r.json())
+      .then(d => { if (d.instruction) setInstruction(d.instruction) })
+      .catch(() => {})
+  }, [product.service, product.platform])
 
   const cfg = SERVICE_CONFIG[product.platform] || SERVICE_CONFIG[product.service] || null
   const logo = cfg?.logo || null
@@ -84,6 +97,14 @@ function ProductDetails({ product, onBack, onAddToCart, onCheckout, userEmail, i
           </div>
           <p className="card-meta">Платформа: {product.platform} · Регион: {product.region}</p>
           <DescriptionBlock text={product.description} />
+          {instruction && (
+            <div className="details-instruction">
+              <div className="details-instruction-title">Как активировать</div>
+              <div className="details-instruction-body">
+                <DescriptionBlock text={instruction} />
+              </div>
+            </div>
+          )}
         </div>
         <div className="details-panel">
           <h3>Что будет дальше</h3>
