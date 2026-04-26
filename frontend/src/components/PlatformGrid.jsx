@@ -61,10 +61,7 @@ function GroupTile({ g, idx, onSelectService }) {
       }
       <div className="platform-tile-info">
         <span className="platform-tile-name">{cfg.label || g.group}</span>
-        <span className="platform-tile-count">
-          <span className="platform-tile-count-num">{g.available}</span>
-          {' '}{itemWord(g.available)}
-        </span>
+        <span className="platform-tile-count">{g.available} {itemWord(g.available)}</span>
       </div>
       <div className="platform-tile-arrow">→</div>
     </motion.button>

@@ -61,13 +61,7 @@ function PlatformPage({ service, groupMeta, products = [], loading, onBack, onSe
               {cfg.label}
             </h1>
             <p className="platform-page-subtitle">
-              {loading ? 'Загрузка...' : (
-                <>
-                  <span style={{ fontWeight: 700, color: cfg.accent }}>{products.length}</span>
-                  {' '}{itemWord(products.length)}
-                  {' · '}мгновенная доставка кода
-                </>
-              )}
+              {loading ? 'Загрузка...' : `${products.length} ${itemWord(products.length)} · мгновенная доставка кода`}
             </p>
           </div>
         </div>

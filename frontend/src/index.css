@@ -1845,11 +1845,6 @@ button {
   border-color: rgba(255,255,255,0.12);
 }
 
-.platform-tile-count-num {
-  font-weight: 700;
-  font-size: 0.76rem;
-  color: color-mix(in srgb, var(--ta, #865fff) 80%, #e8ecff);
-}
 
 .platform-tile-arrow {
   color: rgba(232,236,255,0.2);
