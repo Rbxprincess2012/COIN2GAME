@@ -114,6 +114,12 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier TEXT DEFAULT 'fp';
   `)
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS ggsell_type TEXT DEFAULT 'shop';
+  `)
+  await pool.query(`
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS ggsell_service_id INTEGER;
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (

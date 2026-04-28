@@ -9,7 +9,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import cron from 'node-cron'
 import { pool, initDb } from './db.js'
-import adminRoutes, { syncWbCommissions, syncWbArticles, syncProducts, syncGames, syncWbPrices, syncGGSellPrices } from './admin-routes.js'
+import adminRoutes, { syncWbCommissions, syncWbArticles, syncProducts, syncGames, syncWbPrices, syncGGSellPrices, syncGGSellRecharge } from './admin-routes.js'
 
 dotenv.config()
 
@@ -782,13 +782,15 @@ app.post('/api/cp/complete', async (req, res) => {
 
     // Получаем товар из БД (включая поставщика и группу)
     const prodRes = await pool.query(
-      `SELECT name, price, supplier, ggsell_denomination_id, group_name FROM products WHERE product_id=$1`,
+      `SELECT name, price, supplier, ggsell_denomination_id, ggsell_service_id, ggsell_type, group_name FROM products WHERE product_id=$1`,
       [String(product_id)]
     )
     const productName = prodRes.rows[0]?.name || `Товар #${product_id}`
     const price = prodRes.rows[0]?.price || null
     const supplier = prodRes.rows[0]?.supplier || 'fp'
     const ggDenomId = prodRes.rows[0]?.ggsell_denomination_id
+    const ggServiceId = prodRes.rows[0]?.ggsell_service_id
+    const ggType = prodRes.rows[0]?.ggsell_type || 'shop'
     const groupName = prodRes.rows[0]?.group_name || null
 
     // Инструкция по активации из настроек
@@ -805,32 +807,54 @@ app.post('/api/cp/complete', async (req, res) => {
     let data, activationCode
 
     if (supplier === 'gg' && ggDenomId) {
-      // ── Покупаем у GGSell ──────────────────────────────────────────
       const ggKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
       const ggHeaders = { 'X-API-Key': ggKey, 'Content-Type': 'application/json' }
 
-      // 1. Создаём заказ (резервирование)
-      const orderRes = await fetch('https://api.g-engine.net/v2.1/shop/orders', {
-        method: 'POST', headers: ggHeaders,
-        body: JSON.stringify({ items: [{ id: ggDenomId, quantity: 1 }] })
-      })
-      const orderData = await orderRes.json()
-      if (!orderData.success) throw new Error('GGSell order failed: ' + orderData.message)
-      const ggOrderId = orderData.data?.id
+      if (ggType === 'recharge' && ggServiceId) {
+        // ── Покупаем у GGSell Recharge ─────────────────────────────────
+        // Параметры игрока из topup_data (Account, Server и т.д.)
+        const params = {}
+        if (topup_data) {
+          for (const [k, v] of Object.entries(topup_data)) {
+            params[k] = v
+          }
+        }
+        params['denomination_id'] = ggDenomId
 
-      // 2. Оплачиваем заказ с баланса мерчанта
-      const payRes = await fetch(`https://api.g-engine.net/v2.1/shop/orders/${ggOrderId}/pay`, {
-        method: 'POST', headers: ggHeaders,
-        body: JSON.stringify({})
-      })
-      const payData = await payRes.json()
-      if (!payData.success) throw new Error('GGSell pay failed: ' + payData.message)
+        const orderRes = await fetch(`https://api.g-engine.net/v2.1/recharge/orders/${ggServiceId}`, {
+          method: 'POST', headers: ggHeaders,
+          body: JSON.stringify(params)
+        })
+        const orderData = await orderRes.json()
+        if (!orderData.success) throw new Error('GGSell recharge failed: ' + orderData.message)
 
-      // 3. Извлекаем код активации
-      const items = payData.data?.products?.[0]?.denominations?.[0]?.items || []
-      activationCode = items[0]?.activation_code || null
-      const instruction = payData.data?.products?.[0]?.denominations?.[0]?.items?.[0]?.instruction || null
-      data = { ...payData.data, code: activationCode, instruction, supplier: 'gg' }
+        activationCode = orderData.data?.status || 'completed'
+        data = { ...orderData.data, supplier: 'gg-recharge', instruction: groupInstruction }
+      } else {
+        // ── Покупаем у GGSell Shop ─────────────────────────────────────
+        // 1. Создаём заказ (резервирование)
+        const orderRes = await fetch('https://api.g-engine.net/v2.1/shop/orders', {
+          method: 'POST', headers: ggHeaders,
+          body: JSON.stringify({ items: [{ id: ggDenomId, quantity: 1 }] })
+        })
+        const orderData = await orderRes.json()
+        if (!orderData.success) throw new Error('GGSell order failed: ' + orderData.message)
+        const ggOrderId = orderData.data?.id
+
+        // 2. Оплачиваем заказ с баланса мерчанта
+        const payRes = await fetch(`https://api.g-engine.net/v2.1/shop/orders/${ggOrderId}/pay`, {
+          method: 'POST', headers: ggHeaders,
+          body: JSON.stringify({})
+        })
+        const payData = await payRes.json()
+        if (!payData.success) throw new Error('GGSell pay failed: ' + payData.message)
+
+        // 3. Извлекаем код активации
+        const items = payData.data?.products?.[0]?.denominations?.[0]?.items || []
+        activationCode = items[0]?.activation_code || null
+        const instruction = payData.data?.products?.[0]?.denominations?.[0]?.items?.[0]?.instruction || null
+        data = { ...payData.data, code: activationCode, instruction, supplier: 'gg' }
+      }
     } else {
       // ── Покупаем у ForeignPay ──────────────────────────────────────
       const path = product_type === 'TOPUP' ? '/topup/deposit' : '/voucher/deposit'
@@ -879,12 +903,19 @@ cron.schedule('0 * * * *', async () => {
   } catch (e) {
     console.error('[cron] FP sync failed:', e.message)
   }
-  // GGSell prices update after FP sync
+  // GGSell shop prices update after FP sync
   try {
     const gg = await syncGGSellPrices()
-    console.log(`[cron] GGSell prices OK: matched=${gg.matched} updated=${gg.updated} rate=${gg.rate}`)
+    console.log(`[cron] GGSell shop OK: matched=${gg.matched} updated=${gg.updated} rate=${gg.rate}`)
   } catch (e) {
-    console.error('[cron] GGSell prices failed:', e.message)
+    console.error('[cron] GGSell shop failed:', e.message)
+  }
+  // GGSell recharge prices update
+  try {
+    const ggr = await syncGGSellRecharge()
+    console.log(`[cron] GGSell recharge OK: matched=${ggr.matched} updated=${ggr.updated} rate=${ggr.rate}`)
+  } catch (e) {
+    console.error('[cron] GGSell recharge failed:', e.message)
   }
 
   // WB price push disabled in cron — run manually from admin when needed

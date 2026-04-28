@@ -401,6 +401,90 @@ router.post('/ggsell/sync-prices', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+// ── GGSell recharge sync ─────────────────────────────────────────────────────
+
+export async function syncGGSellRecharge() {
+  const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('ggsell_api_key')`)
+  const s = {}
+  for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
+  const apiKey = s['ggsell_api_key'] || process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+
+  const cbrRes = await fetch('https://www.cbr-xml-daily.ru/daily_json.js')
+  const cbr = await cbrRes.json()
+  const rate = cbr.Valute.USD.Value * 1.07
+
+  // Все GGSell recharge сервисы
+  const r = await fetch('https://api.g-engine.net/v2.1/recharge/services', { headers: { 'X-API-Key': apiKey } })
+  const rd = await r.json()
+  if (!rd.success && !rd.items) throw new Error('GGSell recharge error: ' + (rd.message || 'unknown'))
+  const services = rd.items || rd.data || []
+
+  // Только фиксированные сервисы с номиналами
+  const fixedServices = services.filter(svc => svc.type === 'fixed' && svc.denominations?.length)
+
+  // Все TOPUP товары из БД
+  const prodRes = await pool.query(
+    `SELECT product_id, name FROM products WHERE product_type = 'TOPUP' AND in_stock = true AND (paused IS NULL OR paused = false)`
+  )
+
+  let matched = 0, updated = 0
+
+  for (const prod of prodRes.rows) {
+    const nameUp = prod.name.toUpperCase()
+    let bestDenom = null, bestService = null
+
+    for (const svc of fixedServices) {
+      for (const denom of svc.denominations) {
+        const val = String(denom.value || '').trim()
+        const cur = String(denom.currency || '').trim().toUpperCase()
+        if (!val || !cur || cur === 'PCS.' || cur === 'MONTHS') continue
+
+        // Матчим по числовому значению и валюте в названии товара
+        const numVal = parseFloat(val)
+        if (isNaN(numVal)) continue
+        const numRe = new RegExp('(?<![0-9])' + String(numVal).replace('.', '\\.') + '(?![0-9])')
+        const curRe = new RegExp(cur.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        if (!numRe.test(nameUp) || !curRe.test(nameUp)) continue
+
+        const ggRub = denom.price * rate
+        if (!bestDenom || ggRub < bestDenom.price * rate) {
+          bestDenom = denom
+          bestService = svc
+        }
+      }
+    }
+
+    if (!bestDenom) continue
+    matched++
+
+    const ggRub = Math.ceil(bestDenom.price * rate)
+    const fpRub = parseFloat(
+      (await pool.query('SELECT price FROM products WHERE product_id=$1', [prod.product_id])).rows[0]?.price || 0
+    )
+
+    if (ggRub < fpRub) {
+      await pool.query(
+        `UPDATE products SET ggsell_denomination_id=$1, ggsell_price=$2, ggsell_service_id=$3, ggsell_type='recharge', supplier='gg', updated_at=NOW() WHERE product_id=$4`,
+        [bestDenom.id, ggRub, bestService.id, prod.product_id]
+      )
+      updated++
+    } else {
+      await pool.query(
+        `UPDATE products SET ggsell_denomination_id=NULL, ggsell_price=NULL, ggsell_service_id=NULL, ggsell_type='shop', supplier='fp', updated_at=NOW() WHERE product_id=$1`,
+        [prod.product_id]
+      )
+    }
+  }
+
+  await log('GGSELL_RECHARGE_SYNC', null, null, { matched, updated, rate: rate.toFixed(2) })
+  return { ok: true, matched, updated, rate: rate.toFixed(2) }
+}
+
+router.post('/ggsell/sync-recharge', async (req, res) => {
+  try { res.json(await syncGGSellRecharge()) }
+  catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 // ── GGSell proxy ──────────────────────────────────────────────────────────────
 
 router.get('/ggsell/products', async (req, res) => {
