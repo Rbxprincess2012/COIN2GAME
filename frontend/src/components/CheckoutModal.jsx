@@ -294,7 +294,6 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
 
       setSbpData(data)
       setStep('paying')
-      if (data.sbp_url) window.open(data.sbp_url, '_blank')
       startPolling(data.sbp_uuid)
     } catch {
       setError('Ошибка соединения с сервером')
@@ -534,31 +533,41 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
         {step === 'paying' && (
           <>
             <div className="modal-header">
-              <h2>Ожидаем оплату</h2>
+              <h2>Оплата</h2>
               <button className="close-button" onClick={() => { stopPolling(); setStep('summary') }}>×</button>
             </div>
             <div className="checkout-body" style={{ alignItems: 'center', textAlign: 'center' }}>
-              <div className="spinner" />
               <p className="checkout-meta" style={{ fontWeight: 600, fontSize: '1rem' }}>{currentItem?.title}</p>
-              <p className="checkout-meta-sub">
-                {sbpData?.sbp_url
-                  ? 'Оплата открыта в новой вкладке. Как только оплатите — код появится здесь автоматически.'
-                  : 'Завершите оплату в виджете. Код появится автоматически после подтверждения.'}
-              </p>
-              {sbpData?.sbp_url && (
-                <a href={sbpData.sbp_url} target="_blank" rel="noopener noreferrer" className="btn-secondary checkout-btn">
-                  Открыть платёж снова
-                </a>
+
+              {sbpData?.sbp_url ? (
+                <>
+                  <p className="checkout-meta-sub" style={{ marginBottom: 12 }}>
+                    Отсканируйте QR-код приложением банка или нажмите кнопку
+                  </p>
+                  <div className="sbp-qr">
+                    <img
+                      src={sbpData.qr_url || `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(sbpData.sbp_url)}&size=200x200&margin=8`}
+                      alt="QR для оплаты"
+                      style={{ borderRadius: 12, background: '#fff', padding: 8 }}
+                    />
+                  </div>
+                  <a href={sbpData.sbp_url} target="_blank" rel="noopener noreferrer" className="btn-primary checkout-btn" style={{ marginTop: 12 }}>
+                    Открыть в банковском приложении
+                  </a>
+                  <p className="checkout-meta-sub" style={{ marginTop: 8 }}>
+                    После оплаты код появится автоматически
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="spinner" style={{ margin: '16px auto' }} />
+                  <p className="checkout-meta-sub">Завершите оплату в виджете. Код появится автоматически.</p>
+                </>
               )}
-              {sbpData?.qr_url && (
-                <div className="sbp-qr">
-                  <img src={sbpData.qr_url} alt="QR для оплаты" />
-                  <p className="checkout-meta-sub">Или отсканируйте QR-код</p>
-                </div>
-              )}
+
               <button
                 className="btn-tertiary"
-                style={{ marginTop: 8, fontSize: '0.85rem' }}
+                style={{ marginTop: 16, fontSize: '0.85rem' }}
                 onClick={() => { stopPolling(); setStep('summary') }}
               >
                 ← Отменить и вернуться
