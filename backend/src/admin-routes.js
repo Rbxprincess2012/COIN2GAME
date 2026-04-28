@@ -459,6 +459,13 @@ export async function syncGGSellRecharge() {
   for (const r of sRes.rows) { try { s[r.key] = JSON.parse(r.value) } catch { s[r.key] = r.value } }
   const apiKey = s['ggsell_api_key'] || process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
 
+  // Сбрасываем все TOPUP товары на FP перед синком — чтобы не оставалось старых ложных совпадений
+  await pool.query(`
+    UPDATE products
+    SET supplier='fp', ggsell_denomination_id=NULL, ggsell_price=NULL, ggsell_service_id=NULL, ggsell_type='shop'
+    WHERE product_type='TOPUP' AND supplier='gg' AND ggsell_type='recharge'
+  `)
+
   const cbrRes = await fetch('https://www.cbr-xml-daily.ru/daily_json.js')
   const cbr = await cbrRes.json()
   const rate = cbr.Valute.USD.Value * 1.07
