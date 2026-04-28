@@ -453,6 +453,43 @@ function summedValues(name) {
   return nums
 }
 
+// Явный маппинг: GGSell service_id → наш service (согласован вручную)
+const RECHARGE_MAP = {
+  5:  'Mobile Legends',              // Mobile Legends Bang Bang (Russia)
+  8:  'PUBG Mobile',                 // PUBG Mobile (Global)
+  9:  'Delta Force',                 // Delta Force (Global)
+  10: 'Honkai Star Rail',            // Honkai: Star Rail
+  13: 'Arena Breakout',              // Arena Breakout
+  14: 'Marvel Rivals',               // Marvel Rivals
+  15: 'Zepeto',                      // ZEPETO
+  18: 'State of Survival Zombie War',// State of Survival
+  20: 'Stumble Guys',                // Stumble Guys
+  21: 'Super SUS',                   // Super SUS
+  25: 'Blood Strike',                // Blood Strike
+  29: 'AFK Journey',                 // AFK Journey
+  30: 'Watcher Of Realms',           // Watcher of Realms
+  32: 'EVE Echoes',                  // EVE Echoes
+  36: 'Love and Deepspace',          // Love and Deepspace
+  37: 'Snowbreak Containment Zone',  // Snowbreak: Containment Zone
+  38: 'Magic Chess Go Go',           // Magic Chess: Go Go
+  44: 'Mobile Legends GLOBAL',       // Mobile Legends Bang Bang (Global)
+  46: 'Free Fire',                   // Garena Free Fire
+  47: 'Free Fire',                   // Garena Free Fire (MAX)
+  66: 'Magic Chess Go Go',           // Magic Chess: Go Go (Russia)
+  67: 'Free Fire',                   // Garena Free Fire (LATAM)
+  68: 'Genshin Impact',              // Genshin Impact (LATAM)
+  69: 'Genshin Impact',              // Genshin Impact (Europe)
+  70: 'Genshin Impact',              // Genshin Impact (USA)
+  73: 'Genshin Impact',              // Genshin Impact (Russia)
+  // Новые товары (добавляются отдельной функцией):
+  // 22: Punishing: Gray Raven
+  // 23: Honor of Kings
+  // 24: Ace Racer
+  // 34: City of Crime: Gang Wars
+  // 41: GrowTopia
+  // 49: BIGO LIVE
+}
+
 export async function syncGGSellRecharge() {
   const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('ggsell_api_key')`)
   const s = {}
@@ -485,7 +522,10 @@ export async function syncGGSellRecharge() {
   // Только фиксированные сервисы с номиналами
   const fixedServices = services.filter(svc => svc.type === 'fixed' && svc.denominations?.length)
 
-  // Все TOPUP товары из БД (с полем service)
+  // Индекс сервисов по ID для быстрого доступа
+  const svcById = Object.fromEntries(fixedServices.map(s => [s.id, s]))
+
+  // Все TOPUP товары из БД
   const prodRes = await pool.query(
     `SELECT product_id, name, service, price FROM products WHERE product_type = 'TOPUP' AND in_stock = true AND (paused IS NULL OR paused = false)`
   )
@@ -493,26 +533,26 @@ export async function syncGGSellRecharge() {
   let matched = 0, updated = 0
 
   for (const prod of prodRes.rows) {
-    const nameNorm = normalizeDenomName(prod.name)
+    // Находим GGSell сервис через явный маппинг по нашему service
+    const ggSvcId = Object.entries(RECHARGE_MAP).find(([, ourSvc]) =>
+      ourSvc.toLowerCase() === (prod.service || '').toLowerCase()
+    )?.[0]
+    if (!ggSvcId) continue
 
-    // 1. Сначала находим GGSell сервис по схожести имени нашего сервиса
-    const ggSvc = findBestGGService(prod.service || prod.name, fixedServices)
+    const ggSvc = svcById[parseInt(ggSvcId)]
     if (!ggSvc) continue
 
-    // 2. Ищем деноминацию по значению внутри найденного сервиса
+    // Ищем деноминацию по значению
+    const nameNorm = normalizeDenomName(prod.name)
     const nums = summedValues(nameNorm)
-    const curNorm = normalizeDenomName(ggSvc.denominations[0]?.currency || '')
 
     let bestDenom = null
     for (const denom of ggSvc.denominations) {
       const denomVal = parseFloat(denom.value)
       if (isNaN(denomVal)) continue
-      // Проверяем что валюта деноминации упоминается в названии товара
       const cur = normalizeDenomName(denom.currency || '')
       if (cur && !nameNorm.includes(cur)) continue
-      // Проверяем что значение деноминации есть в числах из названия товара
       if (!nums.some(n => Math.abs(n - denomVal) < 0.01)) continue
-
       if (!bestDenom || denom.price < bestDenom.price) bestDenom = denom
     }
 
@@ -543,6 +583,46 @@ export async function syncGGSellRecharge() {
 router.post('/ggsell/sync-recharge', async (req, res) => {
   try { res.json(await syncGGSellRecharge()) }
   catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// ── Импорт новых GGSell recharge товаров ────────────────────────────────────
+
+const NEW_RECHARGE_SERVICES = [22, 23, 24, 34, 41, 49] // Punishing, Honor of Kings, Ace Racer, City of Crime, GrowTopia, BIGO LIVE
+
+router.post('/ggsell/import-new-recharge', async (req, res) => {
+  try {
+    const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const cbrRes = await fetch('https://www.cbr-xml-daily.ru/daily_json.js')
+    const cbr = await cbrRes.json()
+    const rate = cbr.Valute.USD.Value * 1.07
+
+    const r = await fetch('https://api.g-engine.net/v2.1/recharge/services?limit=100', {
+      headers: { 'X-API-Key': apiKey }
+    })
+    const rd = await r.json()
+    const allSvcs = rd.items || []
+    const newSvcs = allSvcs.filter(s => NEW_RECHARGE_SERVICES.includes(s.id) && s.type === 'fixed')
+
+    let added = 0
+    for (const svc of newSvcs) {
+      for (const denom of svc.denominations) {
+        const productId = `gg_recharge_${svc.id}_${denom.id}`
+        const name = `${svc.name} ${denom.value} ${denom.currency}`
+        const priceRub = Math.ceil(denom.price * rate)
+        const existing = await pool.query('SELECT 1 FROM products WHERE product_id=$1', [productId])
+        if (existing.rows.length > 0) continue
+        await pool.query(`
+          INSERT INTO products (product_id, name, service, product_type, price, in_stock, supplier,
+            ggsell_denomination_id, ggsell_service_id, ggsell_type, ggsell_price, updated_at)
+          VALUES ($1,$2,$3,'TOPUP',$4,true,'gg',$5,$6,'recharge',$4,NOW())
+        `, [productId, name, svc.name, priceRub, denom.id, svc.id])
+        added++
+      }
+    }
+
+    await log('GGSELL_NEW_RECHARGE_IMPORT', null, null, { added, services: newSvcs.map(s => s.name) })
+    res.json({ ok: true, added, services: newSvcs.map(s => `${s.name} (${s.denominations.length} денoм.)`) })
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 // ── GGSell proxy ──────────────────────────────────────────────────────────────
