@@ -586,6 +586,37 @@ async function getCpCredentials() {
   return { publicId: s['token_cloudpayments'] || '', secretKey: s['token_cloudpayments_secret'] || '' }
 }
 
+// GET /api/gg/recharge-params — параметры GGSell recharge формы для товара
+app.get('/api/gg/recharge-params', async (req, res) => {
+  try {
+    const { product_id } = req.query
+    if (!product_id) return res.status(400).json({ error: 'product_id required' })
+    const row = await pool.query(
+      `SELECT ggsell_service_id FROM products WHERE product_id=$1`,
+      [String(product_id)]
+    )
+    const serviceId = row.rows[0]?.ggsell_service_id
+    if (!serviceId) return res.json({ params: [] })
+
+    const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const r = await fetch(`https://api.g-engine.net/v2.1/recharge/services`, {
+      headers: { 'X-API-Key': apiKey }
+    })
+    const data = await r.json()
+    const services = data.items || []
+    // Ищем на всех страницах
+    let svc = services.find(s => s.id === serviceId)
+    if (!svc) {
+      const r2 = await fetch(`https://api.g-engine.net/v2.1/recharge/services?limit=100&offset=25`, {
+        headers: { 'X-API-Key': apiKey }
+      })
+      const data2 = await r2.json()
+      svc = (data2.items || []).find(s => s.id === serviceId)
+    }
+    res.json({ params: svc?.params || [] })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 // GET /api/config — публичные настройки для фронтенда (без секретов)
 app.get('/api/config', async (req, res) => {
   try {

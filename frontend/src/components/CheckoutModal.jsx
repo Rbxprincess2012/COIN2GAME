@@ -308,35 +308,48 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   async function loadTopupForm() {
     setLoadingForm(true)
     try {
-      const data = await api.fpGroupForm(currentItem.service)
-      const allFields = data.forms?.topup_fields || []
-
-      // Авто-заполняем: region с 1 вариантом, email, product_id
+      let visibleFields = []
       const autoValues = {}
-      const visibleFields = []
 
-      for (const f of allFields) {
-        if (f.name === 'product_id') {
-          // Ищем соответствующий вариант по нашему product_id
-          const match = (f.options || []).find(o => String(o.value) === String(currentItem.id))
-          autoValues[f.name] = match ? match.value : (f.options?.[0]?.value ?? '')
-          continue
+      if (currentItem.supplier === 'gg') {
+        // GGSell recharge: берём параметры из GGSell API
+        const data = await api.ggRechargeParams(currentItem.id)
+        const params = data.params || []
+        for (const p of params) {
+          if (p.param_key === 'denomination_id') continue
+          visibleFields.push({
+            name: p.param_key,
+            label: p.param_key,
+            type: p.param_type === 'Integer' ? 'text' : 'text',
+            placeholder: p.param_key,
+          })
         }
-        if (f.name === 'email') {
-          autoValues[f.name] = userEmail
-          continue
+      } else {
+        // ForeignPay: стандартная форма
+        const data = await api.fpGroupForm(currentItem.service)
+        const allFields = data.forms?.topup_fields || []
+
+        for (const f of allFields) {
+          if (f.name === 'product_id') {
+            const match = (f.options || []).find(o => String(o.value) === String(currentItem.id))
+            autoValues[f.name] = match ? match.value : (f.options?.[0]?.value ?? '')
+            continue
+          }
+          if (f.name === 'email') {
+            autoValues[f.name] = userEmail
+            continue
+          }
+          if (f.type === 'options' && (f.options || []).length === 1) {
+            autoValues[f.name] = f.options[0].value
+            continue
+          }
+          visibleFields.push(f)
         }
-        if (f.type === 'options' && (f.options || []).length === 1) {
-          autoValues[f.name] = f.options[0].value
-          continue
-        }
-        visibleFields.push(f)
       }
 
       setTopupValues(v => ({ ...autoValues, ...v }))
 
       if (visibleFields.length === 0) {
-        // Все поля авто-заполнены — сразу к оплате
         pendingTopupData.current = autoValues
         if (cpAvailable) openCpWidget(autoValues)
         else createOrderSbp(autoValues)
@@ -354,11 +367,6 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   function handlePay() {
     if (!isLoggedIn) { onLogin(); return }
     const type = getType(currentItem)
-    if (currentItem.supplier === 'gg' && !cpAvailable) {
-      setError('Этот товар доступен только при оплате картой. Обратитесь к администратору.')
-      setStep('error')
-      return
-    }
     if (type === 'TOPUP') {
       loadTopupForm()
     } else if (cpAvailable) {

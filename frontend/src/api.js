@@ -42,4 +42,7 @@ export const api = {
 
   // 5.1 Данные купленного товара (код/ваучер/ссылка) по sbp_uuid
   productInfo: (sbp_uuid) => apiPost('/api/fp/product/info', { sbp_uuid }),
+
+  // GGSell: параметры для recharge формы по product_id
+  ggRechargeParams: (product_id) => apiGet('/api/gg/recharge-params', { product_id }),
 }

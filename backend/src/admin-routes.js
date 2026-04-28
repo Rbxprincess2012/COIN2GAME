@@ -403,6 +403,56 @@ router.post('/ggsell/sync-prices', async (req, res) => {
 
 // ── GGSell recharge sync ─────────────────────────────────────────────────────
 
+// Нормализует строку для нечёткого сравнения имён сервисов
+function normalizeName(s) {
+  return s.toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Считает количество совпадающих слов между двумя строками
+function nameScore(a, b) {
+  const wa = new Set(normalizeName(a).split(' ').filter(w => w.length > 2))
+  const wb = new Set(normalizeName(b).split(' ').filter(w => w.length > 2))
+  let score = 0
+  for (const w of wa) if (wb.has(w)) score++
+  return score
+}
+
+// Для каждого нашего сервиса ищет лучший GGSell сервис по имени
+function findBestGGService(ourService, fixedServices) {
+  let best = null, bestScore = 0
+  for (const svc of fixedServices) {
+    const score = nameScore(ourService, svc.name)
+    if (score > bestScore) { bestScore = score; best = svc }
+  }
+  // Требуем хотя бы 1 совпадающее слово длиннее 2 символов
+  return bestScore >= 1 ? best : null
+}
+
+// Нормализует деноминацию: суммирует "X + Y" → X+Y, нормализует название валюты
+function normalizeDenomName(s) {
+  return s.toLowerCase()
+    .replace(/\bgo+ld\s*star\b/g, 'goldstar')
+    .replace(/\bunknown\s+cash\b/g, 'uc')
+    .trim()
+}
+
+// Суммирует числа вида "300 + 30" → 330, "1000 + 155" → 1155
+function summedValues(name) {
+  const nums = []
+  const re = /(\d+(?:\.\d+)?)\s*\+\s*(\d+(?:\.\d+)?)/g
+  let m
+  while ((m = re.exec(name)) !== null) {
+    nums.push(parseFloat(m[1]) + parseFloat(m[2]))
+  }
+  // Также добавляем отдельные числа без +
+  const singles = name.replace(/\d+\s*\+\s*\d+/g, '').match(/\d+(?:\.\d+)?/g) || []
+  for (const n of singles) nums.push(parseFloat(n))
+  return nums
+}
+
 export async function syncGGSellRecharge() {
   const sRes = await pool.query(`SELECT key, value FROM settings WHERE key IN ('ggsell_api_key')`)
   const s = {}
@@ -428,50 +478,47 @@ export async function syncGGSellRecharge() {
   // Только фиксированные сервисы с номиналами
   const fixedServices = services.filter(svc => svc.type === 'fixed' && svc.denominations?.length)
 
-  // Все TOPUP товары из БД
+  // Все TOPUP товары из БД (с полем service)
   const prodRes = await pool.query(
-    `SELECT product_id, name FROM products WHERE product_type = 'TOPUP' AND in_stock = true AND (paused IS NULL OR paused = false)`
+    `SELECT product_id, name, service, price FROM products WHERE product_type = 'TOPUP' AND in_stock = true AND (paused IS NULL OR paused = false)`
   )
 
   let matched = 0, updated = 0
 
   for (const prod of prodRes.rows) {
-    const nameUp = prod.name.toUpperCase()
-    let bestDenom = null, bestService = null
+    const nameNorm = normalizeDenomName(prod.name)
 
-    for (const svc of fixedServices) {
-      for (const denom of svc.denominations) {
-        const val = String(denom.value || '').trim()
-        const cur = String(denom.currency || '').trim().toUpperCase()
-        if (!val || !cur || cur === 'PCS.' || cur === 'MONTHS') continue
+    // 1. Сначала находим GGSell сервис по схожести имени нашего сервиса
+    const ggSvc = findBestGGService(prod.service || prod.name, fixedServices)
+    if (!ggSvc) continue
 
-        // Матчим по числовому значению и валюте в названии товара
-        const numVal = parseFloat(val)
-        if (isNaN(numVal)) continue
-        const numRe = new RegExp('(?<![0-9])' + String(numVal).replace('.', '\\.') + '(?![0-9])')
-        const curRe = new RegExp(cur.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        if (!numRe.test(nameUp) || !curRe.test(nameUp)) continue
+    // 2. Ищем деноминацию по значению внутри найденного сервиса
+    const nums = summedValues(nameNorm)
+    const curNorm = normalizeDenomName(ggSvc.denominations[0]?.currency || '')
 
-        const ggRub = denom.price * rate
-        if (!bestDenom || ggRub < bestDenom.price * rate) {
-          bestDenom = denom
-          bestService = svc
-        }
-      }
+    let bestDenom = null
+    for (const denom of ggSvc.denominations) {
+      const denomVal = parseFloat(denom.value)
+      if (isNaN(denomVal)) continue
+      // Проверяем что валюта деноминации упоминается в названии товара
+      const cur = normalizeDenomName(denom.currency || '')
+      if (cur && !nameNorm.includes(cur)) continue
+      // Проверяем что значение деноминации есть в числах из названия товара
+      if (!nums.some(n => Math.abs(n - denomVal) < 0.01)) continue
+
+      if (!bestDenom || denom.price < bestDenom.price) bestDenom = denom
     }
 
     if (!bestDenom) continue
     matched++
 
     const ggRub = Math.ceil(bestDenom.price * rate)
-    const fpRub = parseFloat(
-      (await pool.query('SELECT price FROM products WHERE product_id=$1', [prod.product_id])).rows[0]?.price || 0
-    )
+    const fpRub = parseFloat(prod.price || 0)
 
     if (ggRub < fpRub) {
       await pool.query(
         `UPDATE products SET ggsell_denomination_id=$1, ggsell_price=$2, ggsell_service_id=$3, ggsell_type='recharge', supplier='gg', updated_at=NOW() WHERE product_id=$4`,
-        [bestDenom.id, ggRub, bestService.id, prod.product_id]
+        [bestDenom.id, ggRub, ggSvc.id, prod.product_id]
       )
       updated++
     } else {
