@@ -627,7 +627,7 @@ app.get('/api/config', async (req, res) => {
   }
 })
 
-function orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }) {
+function orderEmailHtml({ orderNumber, productName, activationCode, instructions, email, topupData, isRecharge }) {
   return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -674,12 +674,29 @@ function orderEmailHtml({ orderNumber, productName, activationCode, instructions
 
           <!-- Code block -->
           <tr><td style="padding:0 40px 28px">
+            ${isRecharge ? `
+            <div style="background:#111827;border-radius:16px;border:1px solid rgba(134,95,255,0.25);padding:28px 24px;text-align:center">
+              <div style="font-size:28px;margin-bottom:12px">✅</div>
+              <div style="font-size:17px;font-weight:700;color:#e8ecff;margin-bottom:8px">Пополнение выполнено</div>
+              <div style="font-size:13px;color:rgba(232,236,255,0.45)">Баланс зачислен на указанный аккаунт</div>
+            </div>` : `
             <div style="background:#111827;border-radius:16px;border:1px solid rgba(134,95,255,0.25);padding:28px 24px;text-align:center">
               <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:rgba(134,95,255,0.7);margin-bottom:16px;font-weight:600">Код активации</div>
               <div style="font-size:30px;font-weight:800;letter-spacing:0.18em;color:#f4c06a;font-family:'Courier New',Courier,monospace;word-break:break-all;line-height:1.3">${activationCode}</div>
               <div style="margin-top:16px;font-size:12px;color:rgba(232,236,255,0.3)">Скопируйте код — он одноразовый и действует бессрочно</div>
-            </div>
+            </div>`}
           </td></tr>
+
+          ${topupData && Object.keys(topupData).length > 0 ? `
+          <!-- Player account data -->
+          <tr><td style="padding:0 40px 28px">
+            <div style="border-left:3px solid #f58f1b;padding:16px 20px;background:rgba(245,143,27,0.06);border-radius:0 12px 12px 0">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#f58f1b;margin-bottom:10px;font-weight:600">Данные аккаунта</div>
+              ${Object.entries(topupData).map(([k, v]) =>
+                `<div style="font-size:13px;color:rgba(232,236,255,0.65);margin-bottom:4px"><span style="color:rgba(232,236,255,0.35)">${k}:</span> <strong style="color:#e8ecff">${v}</strong></div>`
+              ).join('')}
+            </div>
+          </td></tr>` : ''}
 
           ${instructions ? `
           <!-- Instructions -->
@@ -719,7 +736,7 @@ function orderEmailHtml({ orderNumber, productName, activationCode, instructions
 </html>`
 }
 
-async function sendOrderEmail({ email, orderNumber, productName, activationCode, instructions }) {
+async function sendOrderEmail({ email, orderNumber, productName, activationCode, instructions, topupData, isRecharge }) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return
   try {
@@ -729,8 +746,8 @@ async function sendOrderEmail({ email, orderNumber, productName, activationCode,
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from, to: [email],
-        subject: `Заказ №${orderNumber} — ваш код активации`,
-        html: orderEmailHtml({ orderNumber, productName, activationCode, instructions, email }),
+        subject: isRecharge ? `Заказ №${orderNumber} — пополнение выполнено` : `Заказ №${orderNumber} — ваш код активации`,
+        html: orderEmailHtml({ orderNumber, productName, activationCode, instructions, email, topupData, isRecharge }),
       }),
     })
     if (!res.ok) throw new Error(await res.text())
@@ -910,10 +927,14 @@ app.post('/api/cp/complete', async (req, res) => {
     // Увеличиваем счётчик продаж
     pool.query(`UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`, [String(product_id)]).catch(() => {})
 
-    // Отправляем письмо с кодом
-    if (activationCode && email) {
-      const emailInstruction = groupInstruction || data?.instruction || null
-      sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: emailInstruction })
+    // Отправляем письмо с кодом / подтверждением пополнения
+    const emailInstruction = groupInstruction || data?.instruction || null
+    const isRecharge = ggType === 'recharge'
+    const cleanTopupData = topup_data && Object.keys(topup_data).length
+      ? Object.fromEntries(Object.entries(topup_data).filter(([k]) => k !== 'denomination_id'))
+      : null
+    if (email && (activationCode || isRecharge)) {
+      sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: emailInstruction, topupData: cleanTopupData, isRecharge })
     }
 
     res.json({ ...data, order_number: orderNumber })
