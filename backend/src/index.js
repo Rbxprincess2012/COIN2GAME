@@ -779,7 +779,7 @@ app.post('/api/test-purchase', async (req, res) => {
     }
 
     const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
-    const orderNumber = `CG-${seqRes.rows[0].num}`
+    const orderNumber = `${seqRes.rows[0].num}`
 
     const activationCode = `TEST-${Math.random().toString(36).slice(2,6).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`
 
@@ -826,7 +826,7 @@ app.post('/api/cp/complete', async (req, res) => {
 
     // Генерируем номер заказа
     const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
-    const orderNumber = `CG-${seqRes.rows[0].num}`
+    const orderNumber = `${seqRes.rows[0].num}`
 
     // Получаем товар из БД (включая поставщика и группу)
     const prodRes = await pool.query(
@@ -928,11 +928,14 @@ app.post('/api/cp/complete', async (req, res) => {
     pool.query(`UPDATE products SET sales_count = sales_count + 1 WHERE product_id = $1`, [String(product_id)]).catch(() => {})
 
     // Отправляем письмо с кодом / подтверждением пополнения
-    const emailInstruction = groupInstruction || data?.instruction || null
     const isRecharge = ggType === 'recharge'
     const cleanTopupData = topup_data && Object.keys(topup_data).length
       ? Object.fromEntries(Object.entries(topup_data).filter(([k]) => k !== 'denomination_id'))
       : null
+    const defaultInstruction = isRecharge
+      ? 'Пополнение выполнено автоматически. Если баланс не поступил в течение 15 минут — обратитесь в поддержку с номером заказа.'
+      : 'Сохраните этот код. Он одноразовый и действует бессрочно. При возникновении проблем с активацией обратитесь в поддержку с номером заказа.'
+    const emailInstruction = groupInstruction || data?.instruction || defaultInstruction
     if (email && (activationCode || isRecharge)) {
       sendOrderEmail({ email, orderNumber, productName, activationCode, instructions: emailInstruction, topupData: cleanTopupData, isRecharge })
     }
