@@ -366,6 +366,11 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   function handlePay() {
     if (!isLoggedIn) { onLogin(); return }
     const type = getType(currentItem)
+    if (currentItem.supplier === 'gg' && !cpAvailable) {
+      setError('Этот товар оплачивается только банковской картой. Пожалуйста, обратитесь к администратору.')
+      setStep('error')
+      return
+    }
     if (type === 'TOPUP') {
       loadTopupForm()
     } else if (cpAvailable) {
