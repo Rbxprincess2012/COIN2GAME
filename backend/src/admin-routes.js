@@ -591,7 +591,8 @@ router.get('/ggsell/balance', async (req, res) => {
 router.get('/ggsell/recharge/services', async (req, res) => {
   try {
     const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
-    const r = await fetch('https://api.g-engine.net/v2.1/recharge/services', {
+    const qs = new URLSearchParams(req.query).toString()
+    const r = await fetch(`https://api.g-engine.net/v2.1/recharge/services${qs ? '?' + qs : ''}`, {
       headers: { 'X-API-Key': apiKey }
     })
     res.json(await r.json())
