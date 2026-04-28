@@ -444,6 +444,37 @@ router.get('/ggsell/balance', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+router.get('/ggsell/recharge/services', async (req, res) => {
+  try {
+    const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const r = await fetch('https://api.g-engine.net/v2.1/recharge/services', {
+      headers: { 'X-API-Key': apiKey }
+    })
+    res.json(await r.json())
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+router.get('/ggsell/gifts/apps', async (req, res) => {
+  try {
+    const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const qs = new URLSearchParams(req.query).toString()
+    const r = await fetch(`https://api.g-engine.net/v2.1/gifts/apps${qs ? '?' + qs : ''}`, {
+      headers: { 'X-API-Key': apiKey }
+    })
+    res.json(await r.json())
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+router.get('/ggsell/gifts/apps/:app_id', async (req, res) => {
+  try {
+    const apiKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const r = await fetch(`https://api.g-engine.net/v2.1/gifts/apps/${req.params.app_id}`, {
+      headers: { 'X-API-Key': apiKey }
+    })
+    res.json(await r.json())
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 // ── Settings (markup) ────────────────────────────────────────────────────────
 
 router.get('/settings', async (req, res) => {
