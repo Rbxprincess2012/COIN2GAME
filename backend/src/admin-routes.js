@@ -413,11 +413,17 @@ export async function syncGGSellRecharge() {
   const cbr = await cbrRes.json()
   const rate = cbr.Valute.USD.Value * 1.07
 
-  // Все GGSell recharge сервисы
-  const r = await fetch('https://api.g-engine.net/v2.1/recharge/services', { headers: { 'X-API-Key': apiKey } })
-  const rd = await r.json()
-  if (!rd.success && !rd.items) throw new Error('GGSell recharge error: ' + (rd.message || 'unknown'))
-  const services = rd.items || rd.data || []
+  // Все GGSell recharge сервисы (с пагинацией)
+  let services = [], offset = 0
+  while (true) {
+    const r = await fetch(`https://api.g-engine.net/v2.1/recharge/services?limit=100&offset=${offset}`, { headers: { 'X-API-Key': apiKey } })
+    const rd = await r.json()
+    if (!rd.success && !rd.items) throw new Error('GGSell recharge error: ' + (rd.message || 'unknown'))
+    const items = rd.items || []
+    services.push(...items)
+    if (services.length >= (rd.total || items.length) || items.length === 0) break
+    offset += 100
+  }
 
   // Только фиксированные сервисы с номиналами
   const fixedServices = services.filter(svc => svc.type === 'fixed' && svc.denominations?.length)
