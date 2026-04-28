@@ -525,17 +525,17 @@ export async function syncGGSellRecharge() {
   // Индекс сервисов по ID для быстрого доступа
   const svcById = Object.fromEntries(fixedServices.map(s => [s.id, s]))
 
-  // Все TOPUP товары из БД
+  // Все TOPUP товары из БД (group_name = service в API)
   const prodRes = await pool.query(
-    `SELECT product_id, name, service, price FROM products WHERE product_type = 'TOPUP' AND in_stock = true AND (paused IS NULL OR paused = false)`
+    `SELECT product_id, name, group_name, price FROM products WHERE product_type = 'TOPUP' AND in_stock = true AND (paused IS NULL OR paused = false)`
   )
 
   let matched = 0, updated = 0
 
   for (const prod of prodRes.rows) {
-    // Находим GGSell сервис через явный маппинг по нашему service
+    // Находим GGSell сервис через явный маппинг по group_name
     const ggSvcId = Object.entries(RECHARGE_MAP).find(([, ourSvc]) =>
-      ourSvc.toLowerCase() === (prod.service || '').toLowerCase()
+      ourSvc.toLowerCase() === (prod.group_name || '').toLowerCase()
     )?.[0]
     if (!ggSvcId) continue
 

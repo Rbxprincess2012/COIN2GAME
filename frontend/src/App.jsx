@@ -190,6 +190,11 @@ function App() {
   }
 
   const handleAddToCart = (product) => {
+    if (cart.length >= 1) {
+      setShowCart(true)
+      alert('Пока можно добавить только 1 товар за раз. Оформите текущий заказ или очистите корзину.')
+      return
+    }
     setCart((prev) => [...prev, { ...product, cartKey: `${product.id}-${Date.now()}` }])
     setShowCart(true)
   }
