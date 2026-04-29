@@ -113,9 +113,10 @@ function loadCpScript() {
 }
 
 export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, onClose, onLogin, productTypeMap }) {
-  const [step, setStep]           = useState('summary') // summary | topup-form | paying | done-item | all-done | error
+  const [step, setStep]           = useState('summary') // summary | topup-form | cp-iframe | paying | done-item | all-done | error
   const [currentIdx, setCurrentIdx] = useState(0)
   const [sbpData, setSbpData]     = useState(null)
+  const [cpIframe, setCpIframe]   = useState(null) // { paymentUrl, orderNumber }
   const [itemResult, setItemResult] = useState(null)
   const [topupFields, setTopupFields] = useState([])
   const [topupValues, setTopupValues] = useState({})
@@ -123,7 +124,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
   const [copied, setCopied]       = useState(false)
-  const [cpAvailable, setCpAvailable] = useState(null) // null=unknown, true/false
+  const [cpAvailable, setCpAvailable] = useState(null)
   const completedItems            = useRef([])
   const pollTimer                 = useRef(null)
   const pendingTopupData          = useRef({})
@@ -151,6 +152,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     setStep('summary')
     setCurrentIdx(0)
     setSbpData(null)
+    setCpIframe(null)
     setItemResult(null)
     setTopupFields([])
     setTopupValues({})
@@ -192,7 +194,51 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     }, 3000)
   }
 
-  // ── CloudPayments widget flow ─────────────────────────────────────────────
+  // ── CloudPayments iframe flow ────────────────────────────────────────────
+
+  function startOrderPolling(orderNumber) {
+    stopPolling()
+    pollTimer.current = setInterval(async () => {
+      try {
+        const d = await api.orderStatus(orderNumber)
+        if (d.status === 'completed') {
+          stopPolling()
+          const result = d.code
+            ? { type: 'code', code: d.code, instruction: d.instruction }
+            : { type: 'recharge', instruction: d.instruction }
+          completedItems.current.push({ item: currentItem, result })
+          setItemResult(result)
+          setStep('done-item')
+        } else if (d.status === 'failed') {
+          stopPolling()
+          setError('Оплата не прошла. Попробуйте ещё раз.')
+          setStep('error')
+        }
+      } catch { /* network blip */ }
+    }, 3000)
+  }
+
+  async function openCpIframe(topupExtra = {}) {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await api.cpCreateInvoice({
+        product_id: currentItem.id,
+        email: userEmail,
+        topup_data: Object.keys(topupExtra).length ? topupExtra : undefined,
+      })
+      if (data.error) throw new Error(data.error)
+      setCpIframe({ paymentUrl: data.paymentUrl, orderNumber: data.orderNumber })
+      setStep('cp-iframe')
+      startOrderPolling(data.orderNumber)
+    } catch (e) {
+      setError(e.message || 'Не удалось создать платёж')
+      setStep('error')
+    }
+    setLoading(false)
+  }
+
+  // ── CloudPayments widget flow (fallback) ──────────────────────────────────
 
   async function openCpWidget(topupExtra = {}) {
     setLoading(true)
@@ -350,7 +396,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
 
       if (visibleFields.length === 0) {
         pendingTopupData.current = autoValues
-        if (cpAvailable) openCpWidget(autoValues)
+        if (cpAvailable) openCpIframe(autoValues)
         else createOrderSbp(autoValues)
       } else {
         setTopupFields(visibleFields)
@@ -374,7 +420,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
     if (type === 'TOPUP') {
       loadTopupForm()
     } else if (cpAvailable) {
-      openCpWidget()
+      openCpIframe()
     } else {
       createOrderSbp()
     }
@@ -383,7 +429,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
   function handleTopupSubmit(e) {
     e.preventDefault()
     if (cpAvailable) {
-      openCpWidget(topupValues)
+      openCpIframe(topupValues)
     } else {
       createOrderSbp(topupValues)
     }
@@ -419,7 +465,7 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
       transition={{ duration: 0.2 }}
     >
       <motion.div
-        className="modal-card checkout-modal"
+        className={`modal-card checkout-modal${step === 'cp-iframe' ? ' cp-iframe-mode' : ''}`}
         onClick={e => e.stopPropagation()}
         initial={{ opacity: 0, scale: 0.93, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -578,6 +624,41 @@ export default function CheckoutModal({ visible, items, userEmail, isLoggedIn, o
                 ← Отменить и вернуться
               </button>
             </div>
+          </>
+        )}
+
+        {/* ── CP iframe ────────────────────────────────────────────── */}
+        {step === 'cp-iframe' && cpIframe && (
+          <>
+            <div className="modal-header">
+              <h2>Оплата</h2>
+              <button className="close-button" onClick={() => { stopPolling(); setStep('summary') }}>×</button>
+            </div>
+            <div className="checkout-meta" style={{ textAlign: 'center', marginBottom: 8 }}>
+              {currentItem?.title} — ₽{currentItem?.price.toLocaleString('ru-RU')}
+            </div>
+            <iframe
+              src={cpIframe.paymentUrl}
+              style={{
+                width: '100%',
+                height: '480px',
+                border: 'none',
+                borderRadius: '12px',
+                background: '#fff',
+              }}
+              title="Оплата"
+              allow="payment"
+            />
+            <p className="checkout-meta-sub" style={{ textAlign: 'center', marginTop: 8 }}>
+              Выберите способ оплаты: карта или СБП. Код появится автоматически после оплаты.
+            </p>
+            <button
+              className="btn-tertiary"
+              style={{ marginTop: 8, fontSize: '0.85rem', width: '100%' }}
+              onClick={() => { stopPolling(); setStep('summary') }}
+            >
+              ← Отменить и вернуться
+            </button>
           </>
         )}
 

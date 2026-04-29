@@ -1163,6 +1163,10 @@ button {
   padding: 0;
 }
 
+.checkout-modal.cp-iframe-mode {
+  width: min(100%, 600px);
+}
+
 .checkout-modal .modal-header {
   padding: 24px 28px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.06);

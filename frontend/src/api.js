@@ -45,4 +45,10 @@ export const api = {
 
   // GGSell: параметры для recharge формы по product_id
   ggRechargeParams: (product_id) => apiGet('/api/gg/recharge-params', { product_id }),
+
+  // CP iframe: создать invoice → получить paymentUrl
+  cpCreateInvoice: (body) => apiPost('/api/cp/create-invoice', body),
+
+  // Статус заказа (поллинг после CP iframe оплаты)
+  orderStatus: (orderNumber) => apiGet(`/api/order-status/${orderNumber}`),
 }

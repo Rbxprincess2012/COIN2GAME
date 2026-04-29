@@ -802,6 +802,190 @@ app.post('/api/test-purchase', async (req, res) => {
   }
 })
 
+// ── CP iframe flow ───────────────────────────────────────────────────────────
+
+// 1. Создаём CP invoice → возвращаем URL для iframe
+app.post('/api/cp/create-invoice', async (req, res) => {
+  try {
+    const { product_id, email, topup_data } = req.body
+    if (!product_id || !email) return res.status(400).json({ error: 'product_id and email required' })
+
+    const { publicId, secretKey } = await getCpCredentials()
+    if (!publicId || !secretKey) return res.status(400).json({ error: 'CloudPayments не настроен' })
+
+    const prodRes = await pool.query(
+      `SELECT name, price, product_type, supplier, ggsell_type FROM products WHERE product_id=$1`,
+      [String(product_id)]
+    )
+    if (!prodRes.rows.length) return res.status(404).json({ error: 'Товар не найден' })
+    const prod = prodRes.rows[0]
+
+    const seqRes = await pool.query(`SELECT nextval('order_seq') AS num`)
+    const orderNumber = `${seqRes.rows[0].num}`
+
+    // Создаём invoice в CP
+    const cpRes = await fetch('https://api.cloudpayments.ru/orders/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(`${publicId}:${secretKey}`).toString('base64')}`,
+      },
+      body: JSON.stringify({
+        Amount: parseFloat(prod.price),
+        Currency: 'RUB',
+        Description: prod.name,
+        Email: email,
+        InvoiceId: orderNumber,
+        RequireConfirmation: false,
+      }),
+    })
+    const cpData = await cpRes.json()
+    if (!cpData.Success) return res.status(400).json({ error: cpData.Message || 'CP error' })
+
+    // Сохраняем pending заказ
+    await pool.query(
+      `INSERT INTO orders (order_number, email, product_id, product_name, product_type, price, status, fp_response)
+       VALUES ($1,$2,$3,$4,$5,$6,'pending',$7)`,
+      [orderNumber, email, String(product_id), prod.name, prod.product_type,
+       prod.price, JSON.stringify({ cp_order_id: cpData.Model.Id, topup_data })]
+    )
+
+    res.json({ paymentUrl: cpData.Model.Url, orderNumber })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// 2. CP webhook — вызывается после оплаты
+app.post('/api/cp/webhook', async (req, res) => {
+  try {
+    const { InvoiceId, TransactionId, Status, Amount } = req.body
+    if (Status !== 'Completed') return res.json({ code: 0 })
+
+    // Находим заказ
+    const orderRes = await pool.query(
+      `SELECT * FROM orders WHERE order_number=$1 AND status='pending'`,
+      [String(InvoiceId)]
+    )
+    if (!orderRes.rows.length) return res.json({ code: 0 })
+    const order = orderRes.rows[0]
+    const meta = order.fp_response || {}
+    const { product_id, topup_data } = typeof meta === 'string' ? JSON.parse(meta) : meta
+
+    // Верифицируем транзакцию
+    const { publicId, secretKey } = await getCpCredentials()
+    if (publicId && secretKey) {
+      const verifyRes = await fetch(`https://api.cloudpayments.ru/payments/get/${TransactionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${publicId}:${secretKey}`).toString('base64')}`,
+        },
+        body: JSON.stringify({}),
+      })
+      const vd = await verifyRes.json()
+      if (!vd.Success || vd.Model?.Status !== 'Completed') return res.json({ code: 0 })
+    }
+
+    // Выдаём товар (тот же код что в /api/cp/complete)
+    const prodRes = await pool.query(
+      `SELECT name, price, supplier, ggsell_denomination_id, ggsell_service_id, ggsell_type, group_name, product_type FROM products WHERE product_id=$1`,
+      [String(product_id)]
+    )
+    if (!prodRes.rows.length) return res.json({ code: 0 })
+    const p = prodRes.rows[0]
+    const supplier = p.supplier || 'fp'
+    const ggDenomId = p.ggsell_denomination_id
+    const ggServiceId = p.ggsell_service_id
+    const ggType = p.ggsell_type || 'shop'
+    const product_type = p.product_type
+
+    let activationCode = null, data = {}
+    const ggKey = process.env.GGSELL_API_KEY || '3enpcij07jqpid6v0rxe5wb08fje4sgy'
+    const ggHeaders = { 'X-API-Key': ggKey, 'Content-Type': 'application/json' }
+
+    if (supplier === 'gg' && ggDenomId) {
+      if (ggType === 'recharge' && ggServiceId) {
+        const params = { ...(topup_data || {}), denomination_id: ggDenomId }
+        const r = await fetch(`https://api.g-engine.net/v2.1/recharge/orders/${ggServiceId}`, {
+          method: 'POST', headers: ggHeaders, body: JSON.stringify(params)
+        })
+        const rd = await r.json()
+        if (!rd.success) throw new Error('GGSell recharge failed: ' + rd.message)
+        activationCode = rd.data?.status || 'completed'
+        data = { ...rd.data, supplier: 'gg-recharge' }
+      } else {
+        const r = await fetch('https://api.g-engine.net/v2.1/shop/orders', {
+          method: 'POST', headers: ggHeaders,
+          body: JSON.stringify({ items: [{ id: ggDenomId, quantity: 1 }] })
+        })
+        const rd = await r.json()
+        if (!rd.success) throw new Error('GGSell order failed: ' + rd.message)
+        const pr = await fetch(`https://api.g-engine.net/v2.1/shop/orders/${rd.data?.id}/pay`, {
+          method: 'POST', headers: ggHeaders, body: JSON.stringify({})
+        })
+        const pd = await pr.json()
+        if (!pd.success) throw new Error('GGSell pay failed: ' + pd.message)
+        const items = pd.data?.products?.[0]?.denominations?.[0]?.items || []
+        activationCode = items[0]?.activation_code || null
+        data = { ...pd.data, code: activationCode, supplier: 'gg' }
+      }
+    } else {
+      const path = product_type === 'TOPUP' ? '/topup/deposit' : '/voucher/deposit'
+      data = await fpPost(FP_PROXY, { path, request: { product_id: parseInt(product_id), email: order.email, order_id: InvoiceId, ...(product_type === 'TOPUP' && topup_data ? topup_data : {}) } })
+      activationCode = data?.code || data?.activation_code || data?.voucher_code || null
+    }
+
+    // Обновляем заказ
+    await pool.query(
+      `UPDATE orders SET status='completed', activation_code=$1, fp_response=$2 WHERE order_number=$3`,
+      [activationCode, JSON.stringify({ ...data, topup_data }), String(InvoiceId)]
+    )
+    pool.query(`UPDATE products SET sales_count=sales_count+1 WHERE product_id=$1`, [String(product_id)]).catch(() => {})
+
+    // Письмо
+    let groupInstruction = null
+    if (p.group_name) {
+      try {
+        const ir = await pool.query(`SELECT value FROM settings WHERE key='group_instructions'`)
+        const im = ir.rows[0]?.value ? JSON.parse(ir.rows[0].value) : {}
+        groupInstruction = im[p.group_name] || null
+      } catch {}
+    }
+    const isRecharge = ggType === 'recharge'
+    const defaultInstruction = isRecharge
+      ? 'Пополнение выполнено автоматически. Если баланс не поступил в течение 15 минут — обратитесь в поддержку.'
+      : 'Сохраните этот код. Он одноразовый и действует бессрочно.'
+    const cleanTopupData = topup_data ? Object.fromEntries(Object.entries(topup_data).filter(([k]) => k !== 'denomination_id')) : null
+    if (order.email && (activationCode || isRecharge)) {
+      sendOrderEmail({ email: order.email, orderNumber: InvoiceId, productName: p.name, activationCode, instructions: groupInstruction || data?.instruction || defaultInstruction, topupData: cleanTopupData, isRecharge })
+    }
+
+    res.json({ code: 0 })
+  } catch (e) {
+    console.error('[cp/webhook]', e.message)
+    res.json({ code: 0 })
+  }
+})
+
+// 3. Статус заказа для поллинга
+app.get('/api/order-status/:orderNumber', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT status, activation_code, product_name, fp_response FROM orders WHERE order_number=$1`,
+      [req.params.orderNumber]
+    )
+    if (!r.rows.length) return res.status(404).json({ error: 'Заказ не найден' })
+    const o = r.rows[0]
+    const meta = typeof o.fp_response === 'string' ? JSON.parse(o.fp_response) : (o.fp_response || {})
+    res.json({
+      status: o.status,
+      code: o.activation_code,
+      productName: o.product_name,
+      instruction: meta.instruction || null,
+      supplier: meta.supplier || null,
+    })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 app.post('/api/cp/complete', async (req, res) => {
   try {
     const { transaction_id, order_id, product_id, product_type, email, topup_data } = req.body
