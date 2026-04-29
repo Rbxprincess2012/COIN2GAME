@@ -857,7 +857,22 @@ app.post('/api/cp/create-invoice', async (req, res) => {
 // 2. CP webhook — вызывается после оплаты
 app.post('/api/cp/webhook', async (req, res) => {
   try {
-    const { InvoiceId, TransactionId, Status, Amount } = req.body
+    // Верификация HMAC подписи CP
+    const { secretKey } = await getCpCredentials()
+    if (secretKey) {
+      const hmacHeader = req.headers['content-hmac'] || req.headers['x-content-hmac']
+      if (hmacHeader) {
+        const { createHmac } = await import('crypto')
+        const rawBody = JSON.stringify(req.body)
+        const expected = createHmac('sha256', secretKey).update(rawBody).digest('base64')
+        if (hmacHeader !== expected) {
+          console.warn('[cp/webhook] HMAC mismatch — ignoring')
+          return res.json({ code: 0 })
+        }
+      }
+    }
+
+    const { InvoiceId, TransactionId, Status } = req.body
     if (Status !== 'Completed') return res.json({ code: 0 })
 
     // Находим заказ
